@@ -1,0 +1,6 @@
+# env specific
+.DS_Store
+
+# rust specific
+/target
+Cargo.lock
