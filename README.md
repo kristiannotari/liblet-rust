@@ -14,14 +14,4 @@ If you want to contribute or correct any errors, please do so opening a issues o
 
 ## Ported features
 
-### Grammar
-
-`from_string`
-
-Needs some better parsing techniques but the concept is there
-
-### Production
-
-`from_string`
-
-Sames as the grammar one.
+> work in progress
