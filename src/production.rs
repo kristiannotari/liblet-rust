@@ -9,19 +9,40 @@ pub struct Production {
 }
 
 impl Production {
-    pub fn symbols_lhs(&self) -> HashSet<Symbol> {
+    pub fn new<I>(lhs: I, rhs: I) -> Production
+    where
+        I: IntoIterator<Item = Symbol>,
+    {
+        Production {
+            lhs: lhs.into_iter().collect(),
+            rhs: rhs.into_iter().collect(),
+        }
+    }
+
+    pub fn new_from_string<'a, I>(lhs: I, rhs: I) -> Production
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        Production::new(
+            lhs.into_iter()
+                .map(|s| Symbol::new(s).unwrap())
+                .collect::<Vec<Symbol>>(),
+            rhs.into_iter()
+                .map(|s| Symbol::new(s).unwrap())
+                .collect::<Vec<Symbol>>(),
+        )
+    }
+
+    pub fn lhs(&self) -> HashSet<Symbol> {
         self.lhs.clone().into_iter().collect()
     }
 
-    pub fn symbols_rhs(&self) -> HashSet<Symbol> {
+    pub fn rhs(&self) -> HashSet<Symbol> {
         self.rhs.clone().into_iter().collect()
     }
 
     pub fn symbols(&self) -> HashSet<Symbol> {
-        self.symbols_lhs()
-            .union(&self.symbols_rhs())
-            .map(|x| x.clone())
-            .collect()
+        self.lhs().union(&self.rhs()).map(|x| x.clone()).collect()
     }
 }
 
