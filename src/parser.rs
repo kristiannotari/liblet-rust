@@ -17,6 +17,8 @@ pub enum ParserError {
     ProductionMultipleOneLine(usize),
     ProductionsNoStartSymbol,
     ProductionsTooManyStartSymbols(String),
+    NoSymbols,
+    InvalidSymbol(String),
 }
 
 impl fmt::Display for ParserError {
@@ -30,22 +32,31 @@ impl fmt::Display for ParserError {
             ),
             ParserError::ProductionNoRhs(lhs) => write!(
                 f,
-                "Expected right hand side of production rule {} {} ...",
+                "ParserError: Expected right hand side of production rule {} {} ...",
                 lhs, PRODUCTION_SEP
             ),
             ParserError::ProductionMultipleOneLine(index) => write!(
                 f,
-                "Too many production rule on the same line on line {}",
+                "ParserError: Too many production rule on the same line on line {}",
                 index
             ),
             ParserError::ProductionsNoStartSymbol => write!(
                 f,
-                "No start symbol found in production rules. It must start with a capital letter",
+                "ParserError: No start symbol found in production rules. It must start with a capital letter",
             ),
             ParserError::ProductionsTooManyStartSymbols(lhs) => write!(
                 f,
-                "Too many start symbols found in left hand side \"{}\" of production rule",
+                "ParserError: Too many start symbols found in left hand side \"{}\" of production rule",
                 lhs
+            ),
+            ParserError::NoSymbols => write!(
+                f,
+                "ParserError: No symbols found in input",
+            ),
+            ParserError::InvalidSymbol(symbol) => write!(
+                f,
+                "ParserError: Invalid symbol \"{}\" encountered parsing productions",
+                symbol
             ),
         }
     }
@@ -119,8 +130,8 @@ pub fn productions_from_string(string: &str) -> Result<Vec<Production>, ParserEr
                         return Err(ParserError::ProductionNoRhs(lhs.to_string()));
                     }
                     p.push(Production {
-                        lhs: split_symbols(lhs),
-                        rhs: split_symbols(rhs),
+                        lhs: symbols_from_string(lhs)?,
+                        rhs: symbols_from_string(rhs)?,
                     })
                 }
             }
@@ -139,8 +150,21 @@ pub fn productions_from_string(string: &str) -> Result<Vec<Production>, ParserEr
     Ok(p)
 }
 
-fn split_symbols(string: &str) -> Vec<Symbol> {
-    string.split_whitespace().map(|a| Symbol::new(a)).collect()
+pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, ParserError> {
+    let mut symbols: Vec<Symbol> = Vec::new();
+    for s in string.split_whitespace() {
+        if let Ok(symbol) = Symbol::new(s) {
+            symbols.push(symbol)
+        } else {
+            return Err(ParserError::InvalidSymbol(s.to_string()));
+        }
+    }
+
+    if symbols.is_empty() {
+        return Err(ParserError::NoSymbols);
+    }
+
+    Ok(symbols)
 }
 
 #[cfg(test)]
@@ -152,20 +176,20 @@ mod tests {
     fn productions_from_string() {
         let p_check = vec![
             Production {
-                lhs: vec![Symbol::new("S")],
-                rhs: vec![Symbol::new("A"), Symbol::new("B")],
+                lhs: vec![Symbol::new("S").unwrap()],
+                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
             },
             Production {
-                lhs: vec![Symbol::new("A")],
-                rhs: vec![Symbol::new("a")],
+                lhs: vec![Symbol::new("A").unwrap()],
+                rhs: vec![Symbol::new("a").unwrap()],
             },
             Production {
-                lhs: vec![Symbol::new("A")],
-                rhs: vec![Symbol::new("B")],
+                lhs: vec![Symbol::new("A").unwrap()],
+                rhs: vec![Symbol::new("B").unwrap()],
             },
             Production {
-                lhs: vec![Symbol::new("B")],
-                rhs: vec![Symbol::new("b")],
+                lhs: vec![Symbol::new("B").unwrap()],
+                rhs: vec![Symbol::new("b").unwrap()],
             },
         ];
 
@@ -271,29 +295,33 @@ mod tests {
 
     #[test]
     fn grammar_from_string() {
-        let s_check = Symbol::new("S");
-        let n_check: HashSet<Symbol> = vec![Symbol::new("S"), Symbol::new("A"), Symbol::new("B")]
+        let s_check: Symbol = Symbol::new("S").unwrap();
+        let n_check: HashSet<Symbol> = vec![
+            Symbol::new("S").unwrap(),
+            Symbol::new("A").unwrap(),
+            Symbol::new("B").unwrap(),
+        ]
+        .into_iter()
+        .collect();
+        let t_check: HashSet<Symbol> = vec![Symbol::new("a").unwrap(), Symbol::new("b").unwrap()]
             .into_iter()
             .collect();
-        let t_check: HashSet<Symbol> = vec![Symbol::new("a"), Symbol::new("b")]
-            .into_iter()
-            .collect();
-        let p_check = vec![
+        let p_check: Vec<Production> = vec![
             Production {
-                lhs: vec![Symbol::new("S")],
-                rhs: vec![Symbol::new("A"), Symbol::new("B")],
+                lhs: vec![Symbol::new("S").unwrap()],
+                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
             },
             Production {
-                lhs: vec![Symbol::new("A")],
-                rhs: vec![Symbol::new("a")],
+                lhs: vec![Symbol::new("A").unwrap()],
+                rhs: vec![Symbol::new("a").unwrap()],
             },
             Production {
-                lhs: vec![Symbol::new("A")],
-                rhs: vec![Symbol::new("B")],
+                lhs: vec![Symbol::new("A").unwrap()],
+                rhs: vec![Symbol::new("B").unwrap()],
             },
             Production {
-                lhs: vec![Symbol::new("B")],
-                rhs: vec![Symbol::new("b")],
+                lhs: vec![Symbol::new("B").unwrap()],
+                rhs: vec![Symbol::new("b").unwrap()],
             },
         ];
 
@@ -327,6 +355,52 @@ mod tests {
                 e => panic!(
                     "Parsing grammar from test input should return Err \"{}\" but returned Err \"{}\" instead",
                     ParserError::ProductionsTooManyStartSymbols(expected_lhs),
+                    e
+                ),
+            },
+        }
+    }
+
+    #[test]
+    fn symbols_from_string() {
+        let expected_symbols: Vec<Symbol> =
+            vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()];
+        match super::symbols_from_string("A B") {
+            Ok(symbols) => {
+                assert_eq!(
+                    symbols, expected_symbols,
+                    "Parsed symbols are not the ones expected"
+                );
+            }
+            Err(e) => panic!("Error parsing symbols from string: {}", e),
+        }
+    }
+
+    #[test]
+    fn symbols_from_string_no_symbols() {
+        match super::symbols_from_string("  ") {
+            Ok(_) => panic!("Parsing symbols from test input should return an Err result"),
+            Err(e) => match e {
+                ParserError::NoSymbols => (),
+                e => panic!(
+                    "Parsing symbols from test input should return Err \"{}\" but returned Err \"{}\" instead",
+                    ParserError::NoSymbols,
+                    e
+                ),
+            },
+        }
+    }
+
+    #[test]
+    fn symbols_from_string_invalid_symbol() {
+        let test_input = "®".to_string();
+        match super::symbols_from_string(format!("A {}", test_input).as_str()) {
+            Ok(_) => panic!("Parsing symbols from test input should return an Err result"),
+            Err(e) => match e {
+                ParserError::InvalidSymbol(s) => assert_eq!(s, test_input),
+                e => panic!(
+                    "Parsing symbols from test input should return Err \"{}\" but returned Err \"{}\" instead",
+                    ParserError::InvalidSymbol(test_input),
                     e
                 ),
             },
