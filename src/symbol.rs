@@ -80,6 +80,14 @@ impl Symbol {
     }
 }
 
+fn symbol(string: &str) -> Symbol {
+    Symbol::new(string).unwrap()
+}
+
+fn symbols(string: &str) -> Vec<Symbol> {
+    Symbol::symbols_from_string(string)
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -171,5 +179,22 @@ mod tests {
     fn symbols_from_string() {
         let symbols = vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap(), Symbol::new("a").unwrap()];
         assert_eq!(Symbol::symbols_from_string("A B a"), symbols, "Parsed symbols");
+    }
+
+    #[test]
+    fn symbol() {
+        let s = "A";
+        assert_eq!(super::symbol(s).as_str(), s)
+    }
+
+    #[test]
+    fn symbols() {
+        let s = "A B C D";
+        assert_eq!(super::symbols(s), vec![
+            super::symbol("A"),
+            super::symbol("B"),
+            super::symbol("C"),
+            super::symbol("D"),
+        ])
     }
 }
