@@ -74,6 +74,17 @@ impl Production {
     }
 }
 
+fn production(lhs: &str, rhs: &str) -> Production {
+    Production::new(
+        parser::symbols_from_string(lhs).unwrap(),
+        parser::symbols_from_string(rhs).unwrap(),
+    )
+}
+
+fn productions(string: &str) -> Vec<Production> {
+    Production::from_string(string)
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -219,6 +230,68 @@ mod tests {
             filtered.next(),
             None,
             "Filtered productions on test input should return no more productions"
+        );
+    }
+
+    #[test]
+    pub fn new() {
+        let p_check = Production {
+            lhs: vec![Symbol::new("S").unwrap()],
+            rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+        };
+
+        assert_eq!(
+            Production::new(p_check.lhs(), p_check.rhs()),
+            p_check,
+            "Created production rule is not the one expected"
+        );
+    }
+
+    #[test]
+    pub fn new_from_string() {
+        let p_check = Production {
+            lhs: vec![Symbol::new("S").unwrap()],
+            rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+        };
+
+        assert_eq!(
+            Production::new_from_string(vec!["S"], vec!["A", "B"]),
+            p_check,
+            "Created production rule is not the one expected"
+        );
+    }
+
+    #[test]
+    pub fn production() {
+        let p_check = Production {
+            lhs: vec![Symbol::new("S").unwrap()],
+            rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+        };
+
+        assert_eq!(
+            super::production("S", "A B"),
+            p_check,
+            "Created production rule is not the one expected"
+        );
+    }
+
+    #[test]
+    pub fn productions() {
+        let p_check = vec![
+            Production {
+                lhs: vec![Symbol::new("S").unwrap()],
+                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+            },
+            Production {
+                lhs: vec![Symbol::new("A").unwrap()],
+                rhs: vec![Symbol::new("a").unwrap()],
+            },
+        ];
+
+        assert_eq!(
+            super::productions("S -> A B\nA -> a"),
+            p_check,
+            "Created production rules are not those expected"
         );
     }
 }
