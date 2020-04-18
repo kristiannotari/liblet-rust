@@ -349,7 +349,7 @@ mod tests {
     fn grammar_from_string_too_many_start_symbols() {
         let expected_lhs = "A B".to_string();
         match super::grammar_from_string(format!("{} -> A\nA -> a | B\nB -> b", expected_lhs).as_str()) {
-            Ok(g) => panic!("Parsing grammar from test input should return an Err result"),
+            Ok(_) => panic!("Parsing grammar from test input should return an Err result"),
             Err(e) => match e {
                 ParserError::ProductionsTooManyStartSymbols(lhs) => assert_eq!(expected_lhs, lhs, "Parsing grammar error lhs string should be {} not {}", expected_lhs, lhs),
                 e => panic!(

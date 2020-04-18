@@ -2,23 +2,25 @@ use crate::parser;
 use crate::symbol::Symbol;
 use std::collections::HashSet;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Production {
     pub lhs: Vec<Symbol>,
     pub rhs: Vec<Symbol>,
 }
 
 impl Production {
-    pub fn lhs(&self) -> HashSet<Symbol> {
-        self.lhs.clone().into_iter().collect()
+    pub fn lhs(&self) -> Vec<Symbol> {
+        self.lhs.clone()
     }
 
-    pub fn rhs(&self) -> HashSet<Symbol> {
-        self.rhs.clone().into_iter().collect()
+    pub fn rhs(&self) -> Vec<Symbol> {
+        self.rhs.clone()
     }
 
     pub fn symbols(&self) -> HashSet<Symbol> {
-        self.lhs().union(&self.rhs()).map(|x| x.clone()).collect()
+        let mut symbols: Vec<Symbol> = self.lhs();
+        symbols.append(&mut self.rhs());
+        symbols.into_iter().collect()
     }
 
     pub fn from_string(string: &str) -> Vec<Production> {

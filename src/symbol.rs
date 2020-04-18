@@ -4,7 +4,7 @@ use std::fmt;
 
 const EMPTY_WORD: char = 'ε';
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum SymbolError {
     EmptySymbol,
     InvalidSymbol(String),
