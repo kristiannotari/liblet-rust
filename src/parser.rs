@@ -104,10 +104,10 @@ pub fn grammar_from_string(string: &str) -> Result<Grammar, ParserError> {
 
     if let Some(s) = s {
         Ok(Grammar {
-            s: s,
             n: n,
             t: t,
             p: p,
+            s: s,
         })
     } else {
         Err(ParserError::ProductionsNoStartSymbol)

@@ -69,20 +69,40 @@ impl Production {
         parser::productions_from_string(string).unwrap()
     }
 
+    pub fn from_iter<'a, I>(strings: I) -> Vec<Production>
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        let mut p: Vec<Production> = Vec::new();
+
+        for string in strings {
+            p.append(&mut Production::from_string(string))
+        }
+
+        p
+    }
+
     pub fn such_that(predicate: ProductionPredicate) -> Box<dyn FnMut(&&Production) -> bool> {
         Box::new(move |p| predicate.test(&p))
     }
 }
 
-fn production(lhs: &str, rhs: &str) -> Production {
+pub fn production(lhs: &str, rhs: &str) -> Production {
     Production::new(
         parser::symbols_from_string(lhs).unwrap(),
         parser::symbols_from_string(rhs).unwrap(),
     )
 }
 
-fn productions(string: &str) -> Vec<Production> {
+pub fn productions(string: &str) -> Vec<Production> {
     Production::from_string(string)
+}
+
+pub fn productions_iter<'a, I>(strings: I) -> Vec<Production>
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    Production::from_iter(strings)
 }
 
 #[cfg(test)]
@@ -122,6 +142,34 @@ mod tests {
     #[should_panic]
     pub fn from_string_panic() {
         Production::from_string("S ->\n -> a | B\nB -> b");
+    }
+
+    #[test]
+    pub fn from_iter() {
+        let p_check = vec![
+            Production {
+                lhs: vec![Symbol::new("S").unwrap()],
+                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+            },
+            Production {
+                lhs: vec![Symbol::new("A").unwrap()],
+                rhs: vec![Symbol::new("a").unwrap()],
+            },
+            Production {
+                lhs: vec![Symbol::new("B").unwrap()],
+                rhs: vec![Symbol::new("a").unwrap()],
+            },
+            Production {
+                lhs: vec![Symbol::new("B").unwrap()],
+                rhs: vec![Symbol::new("b").unwrap()],
+            },
+        ];
+
+        assert_eq!(
+            super::productions_iter(vec!["S -> A B", "A -> a", "B -> a | b"]),
+            p_check,
+            "Created production rules are not those expected"
+        );
     }
 
     #[test]
@@ -290,6 +338,34 @@ mod tests {
 
         assert_eq!(
             super::productions("S -> A B\nA -> a"),
+            p_check,
+            "Created production rules are not those expected"
+        );
+    }
+
+    #[test]
+    pub fn productions_iter() {
+        let p_check = vec![
+            Production {
+                lhs: vec![Symbol::new("S").unwrap()],
+                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+            },
+            Production {
+                lhs: vec![Symbol::new("A").unwrap()],
+                rhs: vec![Symbol::new("a").unwrap()],
+            },
+            Production {
+                lhs: vec![Symbol::new("B").unwrap()],
+                rhs: vec![Symbol::new("a").unwrap()],
+            },
+            Production {
+                lhs: vec![Symbol::new("B").unwrap()],
+                rhs: vec![Symbol::new("b").unwrap()],
+            },
+        ];
+
+        assert_eq!(
+            super::productions_iter(vec!["S -> A B", "A -> a", "B -> a | b"]),
             p_check,
             "Created production rules are not those expected"
         );
