@@ -235,7 +235,7 @@ mod tests {
     #[test]
     #[should_panic]
     pub fn restrict_to_panic_start_symbol() {
-        let g_restricted = Grammar::from_string("S -> A\nA -> a | B\nB -> b")
+        Grammar::from_string("S -> A\nA -> a | B\nB -> b")
             .restrict_to(&vec![Symbol::new("A").unwrap(), Symbol::new("a").unwrap()]);
     }
 
