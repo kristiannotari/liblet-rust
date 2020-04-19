@@ -71,16 +71,24 @@ impl Grammar {
         I: IntoIterator<Item = Symbol> + Clone,
     {
         let symbols: HashSet<Symbol> = symbols.clone().into_iter().collect();
+        let n: HashSet<Symbol> = symbols.intersection(&self.n).cloned().collect();
+        let t: HashSet<Symbol> = symbols.intersection(&self.t).cloned().collect();
+
+        if !n.contains(&self.s) {
+            panic!("Restricting the grammar lead to a grammar without start symbol");
+        }
+
+        let p: Vec<Production> = self
+            .p
+            .iter()
+            .filter(|p: &&Production| p.symbols().difference(&symbols).count() == 0)
+            .cloned()
+            .collect();
 
         Grammar {
-            n: symbols.intersection(&self.n).cloned().collect(),
-            t: symbols.intersection(&self.t).cloned().collect(),
-            p: self
-                .p
-                .iter()
-                .filter(|p: &&Production| p.symbols().difference(&symbols).count() == 0)
-                .cloned()
-                .collect(),
+            n: n,
+            t: t,
+            p: p,
             // at the moment, the start symbol from the original grammar is being ported even if
             // not inside the symbols to restrict to
             s: self.s.clone(),
@@ -222,6 +230,13 @@ mod tests {
             g_restricted.p, p_check,
             "Restricted grammar production rules are not those expected"
         );
+    }
+
+    #[test]
+    #[should_panic]
+    pub fn restrict_to_panic_start_symbol() {
+        let g_restricted = Grammar::from_string("S -> A\nA -> a | B\nB -> b")
+            .restrict_to(&vec![Symbol::new("A").unwrap(), Symbol::new("a").unwrap()]);
     }
 
     #[test]
