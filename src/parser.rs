@@ -116,7 +116,7 @@ pub fn grammar_from_string(string: &str) -> Result<Grammar, ParserError> {
 
 pub fn productions_from_string(string: &str) -> Result<Vec<Production>, ParserError> {
     let mut p: Vec<Production> = Vec::new();
-    for (i, rule) in string.lines().enumerate() {
+    for (i, rule) in string.trim().lines().enumerate() {
         let mut sides = rule.split_terminator(PRODUCTION_SEP);
         match (sides.next(), sides.next(), sides.next()) {
             (Some(lhs), Some(rhs), None) => {
@@ -124,7 +124,7 @@ pub fn productions_from_string(string: &str) -> Result<Vec<Production>, ParserEr
                 if lhs.is_empty() {
                     return Err(ParserError::ProductionNoLhs);
                 }
-                for rhs in rhs.split_terminator(PRODUCTION_OR) {
+                for rhs in rhs.split(PRODUCTION_OR) {
                     let rhs = rhs.trim();
                     if rhs.is_empty() {
                         return Err(ParserError::ProductionNoRhs(lhs.to_string()));
@@ -265,7 +265,10 @@ mod tests {
     fn productions_from_string_no_rhs_or() {
         let lhs = "A";
         match super::productions_from_string(format!("{} -> B | ", lhs).as_str()) {
-            Ok(_) => panic!("Productions from test input should return an Err result"),
+            Ok(g) => {
+                println!("{:?}", g);
+                panic!("Productions from test input should return an Err result")
+            },
             Err(e) => match e {
                 ParserError::ProductionNoRhs(_) => (),
                 e => panic!(
