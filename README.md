@@ -16,6 +16,8 @@ If you want to contribute or correct any errors, please do so opening a issues o
 
 ## Ported features
 
+`v0.1.0`
+
 Following the official liblet [documentation](https://liblet.readthedocs.io/en/v1.1.0-alpha/api.html#liblet.grammar.Grammar.restrict_to).
 
 More info available at the docs (*coming soon*).
