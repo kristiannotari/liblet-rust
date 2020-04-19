@@ -18,11 +18,11 @@ If you want to contribute or correct any errors, please do so opening a issues o
 
 `v0.1.0`
 
-Following the official liblet [documentation](https://liblet.readthedocs.io/en/v1.1.0-alpha/api.html#liblet.grammar.Grammar.restrict_to).
-
 More info available at the docs (*coming soon*).
 
 All implementations use a custom type called *Symbol* for representing symbols in a structured way. It also comes with some handy functions to help working on grammar symbols.
+
+> Following the official liblet [documentation](https://liblet.readthedocs.io/en/v1.1.0-alpha/api.html#liblet.grammar.Grammar.restrict_to).
 
 ### Production
 
