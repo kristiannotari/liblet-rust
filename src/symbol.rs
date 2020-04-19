@@ -80,11 +80,11 @@ impl Symbol {
     }
 }
 
-fn symbol(string: &str) -> Symbol {
+pub fn symbol(string: &str) -> Symbol {
     Symbol::new(string).unwrap()
 }
 
-fn symbols(string: &str) -> Vec<Symbol> {
+pub fn symbols(string: &str) -> Vec<Symbol> {
     Symbol::symbols_from_string(string)
 }
 
