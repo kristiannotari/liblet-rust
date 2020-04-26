@@ -34,6 +34,15 @@ impl fmt::Display for Symbol {
     }
 }
 
+impl<'a> IntoIterator for &'a Symbol {
+    type Item = char;
+    type IntoIter = std::str::Chars<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.string.chars()
+    }
+}
+
 impl Symbol {
     pub fn new(string: &str) -> Result<Symbol, SymbolError> {
         if string.is_empty() {
@@ -196,5 +205,14 @@ mod tests {
             super::symbol("C"),
             super::symbol("D"),
         ])
+    }
+
+    #[test]
+    fn into_iter() {
+        let symbol = super::symbol("Abcdef");
+        let chars_check: &Vec<char> = &vec!['A','b','c','d','e','f']; 
+        let chars: &Vec<char> = &symbol.into_iter().collect();
+
+        assert_eq!(chars, chars_check, "Chars collected from iterating over the symbol are not those expected")
     }
 }
