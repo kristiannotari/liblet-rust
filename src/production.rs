@@ -20,7 +20,7 @@ impl ProductionPredicate {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Production {
     pub lhs: Vec<Symbol>,
     pub rhs: Vec<Symbol>,

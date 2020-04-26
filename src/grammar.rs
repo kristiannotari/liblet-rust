@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::production::Production;
+use crate::production::{Production, ProductionPredicate};
 use crate::symbol::Symbol;
 use std::collections::HashSet;
 
@@ -94,6 +94,27 @@ impl Grammar {
             s: self.s.clone(),
         }
     }
+
+    pub fn productives(&self) -> HashSet<Production> {
+        self.productives_from(vec![self.s.clone()])
+    }
+
+    pub fn productives_from(&self, lhs: Vec<Symbol>) -> HashSet<Production> {
+        let mut productions: HashSet<Production> = HashSet::new();
+        for p in self
+            .p
+            .iter()
+            .filter(Production::such_that(ProductionPredicate::LhsEquals(lhs)))
+        {
+            productions.insert(p.clone());
+            productions = productions
+                .union(&self.productives_from(p.rhs()))
+                .cloned()
+                .collect();
+        }
+
+        productions
+    }
 }
 
 pub fn grammar(string: &str) -> Grammar {
@@ -110,6 +131,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::production::production;
+    use crate::symbol::symbol;
 
     #[test]
     pub fn from_string() {
@@ -400,6 +423,50 @@ mod tests {
         assert_eq!(
             g.p, p_check,
             "New grammar production rules are not those expected"
+        );
+    }
+
+    #[test]
+    pub fn productives() {
+        let g: Grammar = super::grammar(
+            "
+            S -> A | B
+            A -> a
+            B -> b
+            C -> c
+        ",
+        );
+        let productions_check: HashSet<Production> = vec![
+            production("S", "A"),
+            production("S", "B"),
+            production("A", "a"),
+            production("B", "b"),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            g.productives(),
+            productions_check,
+            "Productive productions from grammar are not those expected"
+        );
+    }
+
+    #[test]
+    pub fn productives_from() {
+        let g: Grammar = super::grammar(
+            "
+            S -> A | B
+            A -> a
+            B -> b
+            C -> c
+        ",
+        );
+        let productions_check: HashSet<Production> =
+            vec![production("A", "a")].into_iter().collect();
+        assert_eq!(
+            g.productives_from(vec![symbol("A")]),
+            productions_check,
+            "Productive productions from grammar are not those expected"
         );
     }
 }
