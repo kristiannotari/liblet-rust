@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::production::{Production, ProductionPredicate};
+use crate::production::{Production};
 use crate::symbol::Symbol;
 use std::collections::HashSet;
 
@@ -74,7 +74,7 @@ impl Grammar {
         let n: HashSet<Symbol> = symbols.intersection(&self.n).cloned().collect();
         let t: HashSet<Symbol> = symbols.intersection(&self.t).cloned().collect();
 
-        if !n.contains(&self.s) {
+        if !symbols.contains(&self.s) {
             panic!("Restricting the grammar lead to a grammar without start symbol");
         }
 
@@ -89,8 +89,6 @@ impl Grammar {
             n: n,
             t: t,
             p: p,
-            // at the moment, the start symbol from the original grammar is being ported even if
-            // not inside the symbols to restrict to
             s: self.s.clone(),
         }
     }
