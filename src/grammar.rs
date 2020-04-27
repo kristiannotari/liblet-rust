@@ -95,25 +95,47 @@ impl Grammar {
         }
     }
 
-    pub fn productives(&self) -> HashSet<Production> {
-        self.productives_from(vec![self.s.clone()])
+    pub fn productives(&self) -> HashSet<Symbol> {
+        self.productives_from(self.t.clone())
     }
 
-    pub fn productives_from(&self, lhs: Vec<Symbol>) -> HashSet<Production> {
-        let mut productions: HashSet<Production> = HashSet::new();
-        for p in self
-            .p
-            .iter()
-            .filter(Production::such_that(ProductionPredicate::LhsEquals(lhs)))
-        {
-            productions.insert(p.clone());
-            productions = productions
-                .union(&self.productives_from(p.rhs()))
-                .cloned()
-                .collect();
+    fn productives_from(&self, productives: HashSet<Symbol>) -> HashSet<Symbol> {
+        let mut productives_next: HashSet<Symbol> = productives.clone();
+        for p in &self.p {
+            let rhs: HashSet<Symbol> = p.rhs().into_iter().collect();
+            if rhs.is_subset(&productives_next) {
+                let lhs: HashSet<Symbol> = p.lhs().into_iter().collect();
+                productives_next = productives_next.union(&lhs).cloned().collect();
+            }
         }
 
-        productions
+        if productives == productives_next {
+            productives_next
+        } else {
+            self.productives_from(productives_next)
+        }
+    }
+
+    pub fn reachable(&self) -> HashSet<Symbol> {
+        let from: HashSet<Symbol> = vec![self.s.clone()].into_iter().collect();
+        self.reachable_from(from)
+    }
+
+    pub fn reachable_from(&self, reached: HashSet<Symbol>) -> HashSet<Symbol> {
+        let mut reached_next = reached.clone();
+        for p in &self.p {
+            let lhs: HashSet<Symbol> = p.lhs().into_iter().collect();
+            if lhs.is_subset(&reached_next) {
+                let rhs: HashSet<Symbol> = p.rhs().into_iter().collect();
+                reached_next = reached_next.union(&rhs).cloned().collect();
+            }
+        }
+
+        if reached == reached_next {
+            reached_next
+        } else {
+            self.reachable_from(reached_next)
+        }
     }
 }
 
@@ -131,7 +153,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::production::production;
     use crate::symbol::symbol;
 
     #[test]
@@ -427,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    pub fn productives() {
+    pub fn reachable() {
         let g: Grammar = super::grammar(
             "
             S -> A | B
@@ -436,18 +457,67 @@ mod tests {
             C -> c
         ",
         );
-        let productions_check: HashSet<Production> = vec![
-            production("S", "A"),
-            production("S", "B"),
-            production("A", "a"),
-            production("B", "b"),
+        let symbols_check: HashSet<Symbol> = vec![
+            symbol("S"),
+            symbol("A"),
+            symbol("B"),
+            symbol("a"),
+            symbol("B"),
+            symbol("b"),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            g.reachable(),
+            symbols_check,
+            "Reachable symbols from grammar are not those expected"
+        );
+    }
+
+    #[test]
+    pub fn reachable_from() {
+        let g: Grammar = super::grammar(
+            "
+            S -> A | B
+            A -> a
+            B -> b
+            C -> c
+        ",
+        );
+        let symbols_check: HashSet<Symbol> = vec![symbol("A"), symbol("a")].into_iter().collect();
+        let from: HashSet<Symbol> = vec![symbol("A")].into_iter().collect();
+        assert_eq!(
+            g.reachable_from(from),
+            symbols_check,
+            "Reachable symbols from grammar are not those expected"
+        );
+    }
+
+    #[test]
+    pub fn productives() {
+        let g: Grammar = super::grammar(
+            "
+            S -> A | B
+            B -> b
+            C -> c
+            D -> d
+        ",
+        );
+        let symbols_check: HashSet<Symbol> = vec![
+            symbol("S"),
+            symbol("B"),
+            symbol("b"),
+            symbol("C"),
+            symbol("c"),
+            symbol("D"),
+            symbol("d"),
         ]
         .into_iter()
         .collect();
         assert_eq!(
             g.productives(),
-            productions_check,
-            "Productive productions from grammar are not those expected"
+            symbols_check,
+            "Productives symbols from grammar are not those expected"
         );
     }
 
@@ -456,17 +526,19 @@ mod tests {
         let g: Grammar = super::grammar(
             "
             S -> A | B
-            A -> a
             B -> b
             C -> c
+            D -> d
         ",
         );
-        let productions_check: HashSet<Production> =
-            vec![production("A", "a")].into_iter().collect();
+        let symbols_check: HashSet<Symbol> = vec![symbol("S"), symbol("B"), symbol("b")]
+            .into_iter()
+            .collect();
+        let from: HashSet<Symbol> = vec![symbol("b")].into_iter().collect();
         assert_eq!(
-            g.productives_from(vec![symbol("A")]),
-            productions_check,
-            "Productive productions from grammar are not those expected"
+            g.productives_from(from),
+            symbols_check,
+            "Productives symbols from grammar are not those expected"
         );
     }
 }
