@@ -1,6 +1,7 @@
 use crate::parser;
 use crate::symbol::Symbol;
 use std::collections::HashSet;
+use std::fmt;
 
 pub enum ProductionPredicate {
     LhsEquals(Vec<Symbol>),
@@ -24,6 +25,20 @@ impl ProductionPredicate {
 pub struct Production {
     pub lhs: Vec<Symbol>,
     pub rhs: Vec<Symbol>,
+}
+
+impl fmt::Display for Production {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for lhs in self.lhs() {
+            write!(f, "{}", lhs)?;
+        }
+        write!(f, " -> ")?;
+        for rhs in self.rhs() {
+            write!(f, "{}", rhs)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Production {
