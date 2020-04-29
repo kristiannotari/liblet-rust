@@ -30,11 +30,11 @@ pub struct Production {
 impl fmt::Display for Production {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for lhs in self.lhs() {
-            write!(f, "{}", lhs)?;
+            write!(f, "{} ", lhs)?;
         }
-        write!(f, " -> ")?;
+        write!(f, "->")?;
         for rhs in self.rhs() {
-            write!(f, "{}", rhs)?;
+            write!(f, " {}", rhs)?;
         }
 
         Ok(())
