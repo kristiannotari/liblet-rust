@@ -1,4 +1,4 @@
-mod parser;
+mod tokenizer;
 
 pub mod derivation;
 pub mod grammar;
