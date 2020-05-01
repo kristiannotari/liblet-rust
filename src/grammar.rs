@@ -1,5 +1,3 @@
-use crate::tokenizer;
-use crate::tokenizer::TokenizerError;
 use crate::production::{Production, ProductionError};
 use crate::symbol::{Symbol, SymbolError};
 use itertools::Itertools;
@@ -14,8 +12,8 @@ pub enum GrammarError {
     WrongStartSymbol(Symbol),
     SymbolError(SymbolError),
     ProductionError(ProductionError),
-    TokenizerError(TokenizerError),
     NoStartSymbol(Option<String>),
+    MultipleStartSymbols(Production),
 }
 
 impl fmt::Display for GrammarError {
@@ -35,15 +33,15 @@ impl fmt::Display for GrammarError {
             ),
             GrammarError::NoStartSymbol(cause) => {
                 write!(f, "GrammarError: grammar has no start symbol, cause: {}", cause.clone().unwrap_or("unspecified".to_string()))
-            }
+            },
+            GrammarError::MultipleStartSymbols(p) => {
+                write!(f, "GrammarError: grammar has multiple start symbols in production {}", p)
+            },
             GrammarError::SymbolError(e) => {
                 write!(f, "GrammarError: symbol error encountered = {}", e)
             },
             GrammarError::ProductionError(e) => {
                 write!(f, "GrammarError: production error encountered = {}", e)
-            },
-            GrammarError::TokenizerError(e) => {
-                write!(f, "GrammarError: tokenizer error encountered = {}", e)
             }
         }
     }
@@ -51,15 +49,37 @@ impl fmt::Display for GrammarError {
 
 impl Error for GrammarError {}
 
+impl std::convert::From<ProductionError> for GrammarError {
+    fn from(e: ProductionError) -> Self {
+        GrammarError::ProductionError(e)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Grammar {
-    pub n: HashSet<Symbol>,
-    pub t: HashSet<Symbol>,
-    pub p: Vec<Production>,
-    pub s: Symbol,
+    n: HashSet<Symbol>,
+    t: HashSet<Symbol>,
+    p: Vec<Production>,
+    s: Symbol,
 }
 
 impl Grammar {
+    pub fn n(&self) -> HashSet<Symbol> {
+        self.n.clone()
+    }
+
+    pub fn t(&self) -> HashSet<Symbol> {
+        self.t.clone()
+    }
+
+    pub fn p(&self) -> Vec<Production> {
+        self.p.clone()
+    }
+
+    pub fn s(&self) -> Symbol {
+        self.s.clone()
+    }
+
     pub fn new<S, P>(n: S, t: S, p: P, s: Symbol) -> Result<Grammar, GrammarError>
     where
         S: IntoIterator<Item = Symbol>,
@@ -123,14 +143,48 @@ impl Grammar {
     }
 
     pub fn from_string(string: &str) -> Result<Grammar, GrammarError> {
-        tokenizer::grammar_from_string(string).map_err(|e| GrammarError::TokenizerError(e))
+        let p = Production::from_string(string)?;
+
+        let (n, t): (HashSet<Symbol>, HashSet<Symbol>) = p
+            .iter()
+            .map(|p| p.symbols())
+            .fold(HashSet::new(), |mut acc, s| {
+                acc.extend(s);
+                acc
+            })
+            .into_iter()
+            .partition(|s| s.is_non_terminal());
+
+        let s: Symbol;
+
+        if let Some(p) = p.iter().next() {
+            let lhs = p.lhs();
+            let mut lhs = lhs.iter();
+            if let Some(lhs) = lhs.next() {
+                s = lhs.clone()
+            } else {
+                return Err(GrammarError::NoStartSymbol(Some(
+                    "first production rule does not have a lhs".to_string(),
+                )));
+            }
+
+            if let Some(_) = lhs.next() {
+                return Err(GrammarError::MultipleStartSymbols(p.clone()));
+            }
+        } else {
+            return Err(GrammarError::NoStartSymbol(Some(
+                "found no production rules".to_string(),
+            )));
+        }
+
+        Grammar::new(n, t, p, s)
     }
 
     pub fn alternatives(&self, symbols: &Vec<Symbol>) -> Vec<Vec<Symbol>> {
         let mut alternatives: Vec<Vec<Symbol>> = Vec::new();
         for p in &self.p {
-            if &p.lhs == symbols {
-                alternatives.push(p.rhs.clone())
+            if &p.lhs() == symbols {
+                alternatives.push(p.rhs())
             }
         }
 
@@ -147,7 +201,7 @@ impl Grammar {
 
         if !symbols.contains(&self.s) {
             return Err(GrammarError::NoStartSymbol(Some(
-                "estricting the grammar lead to a grammar without start symbol".to_string(),
+                "restricting the grammar lead to a grammar without start symbol".to_string(),
             )));
         }
 
@@ -158,12 +212,7 @@ impl Grammar {
             .cloned()
             .collect();
 
-        Ok(Grammar {
-            n: n,
-            t: t,
-            p: p,
-            s: self.s.clone(),
-        })
+        Grammar::new(n, t, p, self.s.clone())
     }
 
     pub fn productives(&self) -> HashSet<Symbol> {
@@ -224,38 +273,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::production::production;
     use crate::symbol::symbol;
 
     #[test]
     pub fn from_string() {
-        let s_check: Symbol = Symbol::new("S").unwrap();
-        let n_check: HashSet<Symbol> = vec![
-            Symbol::new("S").unwrap(),
-            Symbol::new("A").unwrap(),
-            Symbol::new("B").unwrap(),
-        ]
-        .into_iter()
-        .collect();
-        let t_check: HashSet<Symbol> = vec![Symbol::new("a").unwrap(), Symbol::new("b").unwrap()]
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A"), symbol("B")]
             .into_iter()
             .collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a"), symbol("b")].into_iter().collect();
         let p_check: Vec<Production> = vec![
-            Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("B").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("B").unwrap()],
-                rhs: vec![Symbol::new("b").unwrap()],
-            },
+            production("S", "A B"),
+            production("A", "a"),
+            production("A", "B"),
+            production("B", "b"),
         ];
 
         let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
@@ -279,9 +311,9 @@ mod tests {
         match Grammar::from_string("S ->\n -> a | B\nB -> b") {
             Ok(_) => panic!("grammar from string should return error"),
             Err(e) => match e {
-                GrammarError::TokenizerError(_) => (),
+                GrammarError::ProductionError(_) => (),
                 e => panic!(
-                    "Creation of grammar from test input should return a TokenizerError but returned Err \"{}\" instead",
+                    "Creation of grammar from test input should return a ProductionError but returned Err \"{}\" instead",
                     e
                 ),
             }
@@ -291,13 +323,10 @@ mod tests {
     #[test]
     pub fn alternatives() {
         let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
-        let a_check = vec![
-            vec![Symbol::new("a").unwrap()],
-            vec![Symbol::new("B").unwrap()],
-        ];
+        let a_check = vec![vec![symbol("a")], vec![symbol("B")]];
 
         assert_eq!(
-            g.alternatives(&vec![Symbol::new("A").unwrap()]),
+            g.alternatives(&vec![symbol("A")]),
             a_check,
             "Alternatives are not the one expected"
         );
@@ -308,7 +337,7 @@ mod tests {
         let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
 
         assert!(
-            g.alternatives(&vec![Symbol::new("a").unwrap()]).is_empty(),
+            g.alternatives(&vec![symbol("a")]).is_empty(),
             "Alternatives are not empty when they should"
         );
     }
@@ -317,28 +346,13 @@ mod tests {
     pub fn restrict_to() {
         let g_restricted = Grammar::from_string("S -> A\nA -> a | B\nB -> b")
             .unwrap()
-            .restrict_to(&vec![
-                Symbol::new("S").unwrap(),
-                Symbol::new("A").unwrap(),
-                Symbol::new("a").unwrap(),
-            ])
+            .restrict_to(&vec![symbol("S"), symbol("A"), symbol("a")])
             .unwrap();
 
-        let s_check: Symbol = Symbol::new("S").unwrap();
-        let n_check: HashSet<Symbol> = vec![Symbol::new("S").unwrap(), Symbol::new("A").unwrap()]
-            .into_iter()
-            .collect();
-        let t_check: HashSet<Symbol> = vec![Symbol::new("a").unwrap()].into_iter().collect();
-        let p_check: Vec<Production> = vec![
-            Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
-            },
-        ];
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
 
         assert_eq!(
             g_restricted.s, s_check,
@@ -362,7 +376,7 @@ mod tests {
     pub fn restrict_to_panic_start_symbol() {
         match Grammar::from_string("S -> A\nA -> a | B\nB -> b")
             .unwrap()
-            .restrict_to(&vec![Symbol::new("A").unwrap(), Symbol::new("a").unwrap()]) {
+            .restrict_to(&vec![symbol("A"), symbol("a")]) {
                 Ok(_) => panic!("restricting grammar should return error"),
                 Err(e) => match e {
                     GrammarError::NoStartSymbol(_) => (),
@@ -376,21 +390,10 @@ mod tests {
 
     #[test]
     pub fn new() {
-        let s_check: Symbol = Symbol::new("S").unwrap();
-        let n_check: HashSet<Symbol> = vec![Symbol::new("S").unwrap(), Symbol::new("A").unwrap()]
-            .into_iter()
-            .collect();
-        let t_check: HashSet<Symbol> = vec![Symbol::new("a").unwrap()].into_iter().collect();
-        let p_check: Vec<Production> = vec![
-            Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
-            },
-        ];
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
         let g = Grammar::new(
             n_check.clone(),
             t_check.clone(),
@@ -419,21 +422,10 @@ mod tests {
 
     #[test]
     pub fn new_from_string() {
-        let s_check: Symbol = Symbol::new("S").unwrap();
-        let n_check: HashSet<Symbol> = vec![Symbol::new("S").unwrap(), Symbol::new("A").unwrap()]
-            .into_iter()
-            .collect();
-        let t_check: HashSet<Symbol> = vec![Symbol::new("a").unwrap()].into_iter().collect();
-        let p_check: Vec<Production> = vec![
-            Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
-            },
-        ];
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
         let g = Grammar::new_from_string(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S")
             .unwrap();
 
@@ -457,34 +449,16 @@ mod tests {
 
     #[test]
     pub fn grammar() {
-        let s_check: Symbol = Symbol::new("S").unwrap();
-        let n_check: HashSet<Symbol> = vec![
-            Symbol::new("S").unwrap(),
-            Symbol::new("A").unwrap(),
-            Symbol::new("B").unwrap(),
-        ]
-        .into_iter()
-        .collect();
-        let t_check: HashSet<Symbol> = vec![Symbol::new("a").unwrap(), Symbol::new("b").unwrap()]
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A"), symbol("B")]
             .into_iter()
             .collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a"), symbol("b")].into_iter().collect();
         let p_check: Vec<Production> = vec![
-            Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("B").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("B").unwrap()],
-                rhs: vec![Symbol::new("b").unwrap()],
-            },
+            production("S", "A B"),
+            production("A", "a"),
+            production("A", "B"),
+            production("B", "b"),
         ];
 
         let g = super::grammar("S -> A B\nA -> a | B\nB -> b");
@@ -505,21 +479,10 @@ mod tests {
 
     #[test]
     pub fn grammar_iter() {
-        let s_check: Symbol = Symbol::new("S").unwrap();
-        let n_check: HashSet<Symbol> = vec![Symbol::new("S").unwrap(), Symbol::new("A").unwrap()]
-            .into_iter()
-            .collect();
-        let t_check: HashSet<Symbol> = vec![Symbol::new("a").unwrap()].into_iter().collect();
-        let p_check: Vec<Production> = vec![
-            Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap()],
-            },
-            Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
-            },
-        ];
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
         let g = super::grammar_iter(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
 
         assert_eq!(

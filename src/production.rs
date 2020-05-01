@@ -1,6 +1,6 @@
+use crate::symbol::{Symbol, SymbolError};
 use crate::tokenizer;
 use crate::tokenizer::TokenizerError;
-use crate::symbol::{Symbol, SymbolError};
 use itertools::Itertools;
 use std::collections::HashSet;
 use std::error::Error;
@@ -31,6 +31,12 @@ impl fmt::Display for ProductionError {
 
 impl Error for ProductionError {}
 
+impl std::convert::From<TokenizerError> for ProductionError {
+    fn from(e: TokenizerError) -> Self {
+        ProductionError::TokenizerError(e)
+    }
+}
+
 pub enum ProductionPredicate {
     LhsEquals(Vec<Symbol>),
     RhsEquals(Vec<Symbol>),
@@ -51,8 +57,8 @@ impl ProductionPredicate {
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Production {
-    pub lhs: Vec<Symbol>,
-    pub rhs: Vec<Symbol>,
+    lhs: Vec<Symbol>,
+    rhs: Vec<Symbol>,
 }
 
 impl fmt::Display for Production {
@@ -128,7 +134,18 @@ impl Production {
     }
 
     pub fn from_string(string: &str) -> Result<Vec<Production>, ProductionError> {
-        tokenizer::productions_from_string(string).map_err(|e| ProductionError::TokenizerError(e))
+        tokenizer::productions_from_string(string)?
+            .iter()
+            .map(|p| {
+                Production::new_from_string::<Vec<&str>>(
+                    p.0.iter().map(String::as_str).collect(),
+                    p.1.iter().map(String::as_str).collect(),
+                )
+            })
+            .fold_results(Vec::new(), |mut acc, p| {
+                acc.push(p);
+                acc
+            })
     }
 
     pub fn from_iter<'a, I>(strings: I) -> Result<Vec<Production>, ProductionError>
@@ -151,8 +168,8 @@ impl Production {
 
 pub fn production(lhs: &str, rhs: &str) -> Production {
     Production::new(
-        tokenizer::symbols_from_string(lhs).unwrap(),
-        tokenizer::symbols_from_string(rhs).unwrap(),
+        Symbol::symbols_from_string(lhs).unwrap(),
+        Symbol::symbols_from_string(rhs).unwrap(),
     )
     .unwrap()
 }
@@ -172,25 +189,26 @@ where
 mod tests {
 
     use super::*;
+    use crate::symbol::symbol;
 
     #[test]
     pub fn from_string() {
         let p_check = vec![
             Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+                lhs: vec![symbol("S")],
+                rhs: vec![symbol("A"), symbol("B")],
             },
             Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
+                lhs: vec![symbol("A")],
+                rhs: vec![symbol("a")],
             },
             Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("B").unwrap()],
+                lhs: vec![symbol("A")],
+                rhs: vec![symbol("B")],
             },
             Production {
-                lhs: vec![Symbol::new("B").unwrap()],
-                rhs: vec![Symbol::new("b").unwrap()],
+                lhs: vec![symbol("B")],
+                rhs: vec![symbol("b")],
             },
         ];
 
@@ -219,20 +237,20 @@ mod tests {
     pub fn from_iter() {
         let p_check = vec![
             Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+                lhs: vec![symbol("S")],
+                rhs: vec![symbol("A"), symbol("B")],
             },
             Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
+                lhs: vec![symbol("A")],
+                rhs: vec![symbol("a")],
             },
             Production {
-                lhs: vec![Symbol::new("B").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
+                lhs: vec![symbol("B")],
+                rhs: vec![symbol("a")],
             },
             Production {
-                lhs: vec![Symbol::new("B").unwrap()],
-                rhs: vec![Symbol::new("b").unwrap()],
+                lhs: vec![symbol("B")],
+                rhs: vec![symbol("b")],
             },
         ];
 
@@ -245,18 +263,18 @@ mod tests {
 
     #[test]
     pub fn predicate_lhs_equals() {
-        let predicate = ProductionPredicate::LhsEquals(vec![Symbol::new("T").unwrap()]);
+        let predicate = ProductionPredicate::LhsEquals(vec![symbol("T")]);
 
         assert!(
             predicate.test(&Production {
-                lhs: vec![Symbol::new("T").unwrap()],
+                lhs: vec![symbol("T")],
                 rhs: vec![]
             }),
             "Predicate should return true"
         );
         assert!(
             !predicate.test(&Production {
-                lhs: vec![Symbol::new("F").unwrap()],
+                lhs: vec![symbol("F")],
                 rhs: vec![]
             }),
             "Predicate should return false"
@@ -265,19 +283,19 @@ mod tests {
 
     #[test]
     pub fn predicate_rhs_equals() {
-        let predicate = ProductionPredicate::RhsEquals(vec![Symbol::new("T").unwrap()]);
+        let predicate = ProductionPredicate::RhsEquals(vec![symbol("T")]);
 
         assert!(
             predicate.test(&Production {
                 lhs: vec![],
-                rhs: vec![Symbol::new("T").unwrap()]
+                rhs: vec![symbol("T")]
             }),
             "Predicate should return true"
         );
         assert!(
             !predicate.test(&Production {
                 lhs: vec![],
-                rhs: vec![Symbol::new("F").unwrap()]
+                rhs: vec![symbol("F")]
             }),
             "Predicate should return false"
         );
@@ -290,14 +308,14 @@ mod tests {
         assert!(
             predicate.test(&Production {
                 lhs: vec![],
-                rhs: vec![Symbol::new("T1").unwrap(), Symbol::new("T2").unwrap()]
+                rhs: vec![symbol("T1"), symbol("T2")]
             }),
             "Predicate should return true"
         );
         assert!(
             !predicate.test(&Production {
                 lhs: vec![],
-                rhs: vec![Symbol::new("F").unwrap()]
+                rhs: vec![symbol("F")]
             }),
             "Predicate should return false"
         );
@@ -305,26 +323,19 @@ mod tests {
 
     #[test]
     pub fn predicate_rhs_is_suffix_of() {
-        let predicate = ProductionPredicate::RhsIsSuffixOf(vec![
-            Symbol::new("T2").unwrap(),
-            Symbol::new("T3").unwrap(),
-        ]);
+        let predicate = ProductionPredicate::RhsIsSuffixOf(vec![symbol("T2"), symbol("T3")]);
 
         assert!(
             predicate.test(&Production {
                 lhs: vec![],
-                rhs: vec![
-                    Symbol::new("T1").unwrap(),
-                    Symbol::new("T2").unwrap(),
-                    Symbol::new("T3").unwrap()
-                ]
+                rhs: vec![symbol("T1"), symbol("T2"), symbol("T3")]
             }),
             "Predicate should return true"
         );
         assert!(
             !predicate.test(&Production {
                 lhs: vec![],
-                rhs: vec![Symbol::new("F").unwrap()]
+                rhs: vec![symbol("F")]
             }),
             "Predicate should return false"
         );
@@ -332,9 +343,7 @@ mod tests {
 
     #[test]
     pub fn such_that() {
-        let filter = Production::such_that(ProductionPredicate::LhsEquals(vec![
-            Symbol::new("T").unwrap()
-        ]));
+        let filter = Production::such_that(ProductionPredicate::LhsEquals(vec![symbol("T")]));
         let productions = Production::from_string("S -> A | B\nA -> a\nT -> t\nB -> B").unwrap();
 
         let productions_iter = productions.clone();
@@ -355,8 +364,8 @@ mod tests {
     #[test]
     pub fn new() {
         let p_check = Production {
-            lhs: vec![Symbol::new("S").unwrap()],
-            rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+            lhs: vec![symbol("S")],
+            rhs: vec![symbol("A"), symbol("B")],
         };
 
         assert_eq!(
@@ -369,8 +378,8 @@ mod tests {
     #[test]
     pub fn new_from_string() {
         let p_check = Production {
-            lhs: vec![Symbol::new("S").unwrap()],
-            rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+            lhs: vec![symbol("S")],
+            rhs: vec![symbol("A"), symbol("B")],
         };
 
         assert_eq!(
@@ -383,8 +392,8 @@ mod tests {
     #[test]
     pub fn production() {
         let p_check = Production {
-            lhs: vec![Symbol::new("S").unwrap()],
-            rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+            lhs: vec![symbol("S")],
+            rhs: vec![symbol("A"), symbol("B")],
         };
 
         assert_eq!(
@@ -398,12 +407,12 @@ mod tests {
     pub fn productions() {
         let p_check = vec![
             Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+                lhs: vec![symbol("S")],
+                rhs: vec![symbol("A"), symbol("B")],
             },
             Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
+                lhs: vec![symbol("A")],
+                rhs: vec![symbol("a")],
             },
         ];
 
@@ -418,20 +427,20 @@ mod tests {
     pub fn productions_iter() {
         let p_check = vec![
             Production {
-                lhs: vec![Symbol::new("S").unwrap()],
-                rhs: vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap()],
+                lhs: vec![symbol("S")],
+                rhs: vec![symbol("A"), symbol("B")],
             },
             Production {
-                lhs: vec![Symbol::new("A").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
+                lhs: vec![symbol("A")],
+                rhs: vec![symbol("a")],
             },
             Production {
-                lhs: vec![Symbol::new("B").unwrap()],
-                rhs: vec![Symbol::new("a").unwrap()],
+                lhs: vec![symbol("B")],
+                rhs: vec![symbol("a")],
             },
             Production {
-                lhs: vec![Symbol::new("B").unwrap()],
-                rhs: vec![Symbol::new("b").unwrap()],
+                lhs: vec![symbol("B")],
+                rhs: vec![symbol("b")],
             },
         ];
 

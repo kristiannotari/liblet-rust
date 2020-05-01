@@ -1,8 +1,9 @@
 use crate::tokenizer;
 use std::error::Error;
 use std::fmt;
+use itertools::Itertools;
 
-const EMPTY_WORD: char = 'ε';
+const EMPTY_SYMBOL: char = 'ε';
 
 #[derive(Debug,PartialEq)]
 pub enum SymbolError {
@@ -49,13 +50,12 @@ impl Symbol {
             return Err(SymbolError::EmptySymbol);
         }
 
-        let s: String = string
-            .to_string()
-            .chars()
-            .filter(|c| Symbol::is_valid_char(c))
-            .collect();
-        if s.len() != string.len() {
-            return Err(SymbolError::InvalidSymbol(string.to_string()));
+        let s = string.to_string();
+
+        if s
+        .chars()
+        .any(|c| !Symbol::is_valid_char(&c)) {
+            return Err(SymbolError::InvalidSymbol(s));
         }
 
         Ok(Symbol { string: s })
@@ -81,11 +81,11 @@ impl Symbol {
     }
 
     pub fn is_valid_char(c: &char) -> bool {
-        c.is_ascii_graphic() || c == &EMPTY_WORD
+        c.is_ascii_graphic() || c == &EMPTY_SYMBOL
     }
 
-    pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, tokenizer::TokenizerError> {
-        tokenizer::symbols_from_string(string)
+    pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, SymbolError> {
+        tokenizer::symbols_from_string(string).iter().map(|s| Symbol::new(s)).fold_results(Vec::new(), |mut acc, s| { acc.push(s); acc})
     }
 }
 
@@ -181,7 +181,7 @@ mod tests {
         assert!(Symbol::is_valid_char(&valid_symbol), "Char {} should be flagged as valid", valid_symbol);
         assert!(!Symbol::is_valid_char(&invalid_symbol_1), "Char {} should not be flagged as valid", invalid_symbol_1);
         assert!(!Symbol::is_valid_char(&invalid_symbol_2), "Char {} should not be flagged as valid", invalid_symbol_2);
-        assert!(Symbol::is_valid_char(&EMPTY_WORD), "Empty word {} should be flagged as valid", EMPTY_WORD);
+        assert!(Symbol::is_valid_char(&EMPTY_SYMBOL), "Empty word {} should be flagged as valid", EMPTY_SYMBOL);
     }
 
     #[test]

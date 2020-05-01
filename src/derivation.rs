@@ -67,7 +67,7 @@ impl fmt::Display for Derivation {
 
 impl Derivation {
     pub fn new(g: Grammar) -> Derivation {
-        let from = vec![g.s.clone()];
+        let from = vec![g.s()];
         Derivation::new_from(g, from)
     }
 
@@ -89,17 +89,18 @@ impl Derivation {
         if let Some(last) = self.sentential_forms.last() {
             last.clone()
         } else {
-            vec![self.g.s.clone()]
+            vec![self.g.s()]
         }
     }
 
     pub fn step(mut self, p_index: usize, index: usize) -> Result<Derivation, DerivationError> {
         let step = DerivationStep { p_index, index };
-        let p: &Production = self
+        let p: Production = self
             .g
-            .p
+            .p()
             .get(p_index)
-            .ok_or(DerivationError::WrongProductionIndex(p_index))?;
+            .ok_or(DerivationError::WrongProductionIndex(p_index))?
+            .clone();
         let mut sf: Vec<Symbol> = self.sentential_form();
         if sf.len() <= step.index {
             return Err(DerivationError::WrongIndex(sf, step.index));
@@ -108,7 +109,7 @@ impl Derivation {
 
         if lhs.starts_with(&p.lhs()) {
             let mut rhs = p.rhs().clone();
-            let mut remaining = lhs.split_off(p.lhs.len());
+            let mut remaining = lhs.split_off(p.lhs().len());
             sf.append(&mut rhs);
             sf.append(&mut remaining);
             self.steps.push(step);
@@ -195,7 +196,7 @@ impl Derivation {
         let sf_len = self.sentential_form().len();
         let lhs: Vec<Symbol> = self
             .g
-            .p
+            .p()
             .get(p_index)
             .ok_or(DerivationError::WrongProductionIndex(p_index))?
             .lhs();
@@ -225,7 +226,7 @@ impl Derivation {
             return Err(DerivationError::WrongIndex(sf, index));
         }
 
-        for (i, p) in self.g.p.iter().enumerate() {
+        for (i, p) in self.g.p().iter().enumerate() {
             let lhs = p.lhs();
             if sf[index..sf_len] == lhs[0..lhs.len()] {
                 steps.push(DerivationStep {
