@@ -1,7 +1,55 @@
 use crate::parser;
-use crate::production::{Production};
-use crate::symbol::Symbol;
+use crate::parser::ParserError;
+use crate::production::{Production, ProductionError};
+use crate::symbol::{Symbol, SymbolError};
+use itertools::Itertools;
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+pub enum GrammarError {
+    WrongNonTerminals,
+    WrongTerminals,
+    WrongStartSymbol(Symbol),
+    SymbolError(SymbolError),
+    ProductionError(ProductionError),
+    ParserError(ParserError),
+    NoStartSymbol(Option<String>),
+}
+
+impl fmt::Display for GrammarError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GrammarError::WrongNonTerminals => write!(
+                f,
+                "GrammarError: non non terminal symbols as non terminal symbols for grammar"
+            ),
+            GrammarError::WrongTerminals => write!(
+                f,
+                "GrammarError: non terminal symbols as terminal symbols in grammar"
+            ),
+            GrammarError::WrongStartSymbol(s) => write!(
+                f,
+                "GrammarError: start symbol should be a valid nont terminal symbol, received \"{}\" instead", s
+            ),
+            GrammarError::NoStartSymbol(cause) => {
+                write!(f, "GrammarError: grammar has no start symbol, cause: {}", cause.clone().unwrap_or("unspecified".to_string()))
+            }
+            GrammarError::SymbolError(e) => {
+                write!(f, "GrammarError: symbol error encountered = {}", e)
+            },
+            GrammarError::ProductionError(e) => {
+                write!(f, "GrammarError: production error encountered = {}", e)
+            },
+            GrammarError::ParserError(e) => {
+                write!(f, "GrammarError: parser error encountered = {}", e)
+            }
+        }
+    }
+}
+
+impl Error for GrammarError {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Grammar {
@@ -12,7 +60,7 @@ pub struct Grammar {
 }
 
 impl Grammar {
-    pub fn new<S, P>(n: S, t: S, p: P, s: Symbol) -> Grammar
+    pub fn new<S, P>(n: S, t: S, p: P, s: Symbol) -> Result<Grammar, GrammarError>
     where
         S: IntoIterator<Item = Symbol>,
         P: IntoIterator<Item = Production>,
@@ -21,38 +69,61 @@ impl Grammar {
         let t: HashSet<Symbol> = t.into_iter().collect();
         let p: Vec<Production> = p.into_iter().collect();
 
+        if !s.is_non_terminal() {
+            return Err(GrammarError::WrongStartSymbol(s));
+        }
+
         n.insert(s.clone());
 
         if !n.iter().all(|s: &Symbol| s.is_non_terminal()) {
-            panic!("Non terminal symbols in grammar should all be valid non terminals")
+            return Err(GrammarError::WrongNonTerminals);
         }
 
         if !t.iter().all(|s: &Symbol| s.is_terminal()) {
-            panic!("Terminal symbols in grammar should all be valid terminals")
+            return Err(GrammarError::WrongTerminals);
         }
 
-        Grammar {
+        Ok(Grammar {
             n: n,
             t: t,
             p: p,
             s: s,
-        }
+        })
     }
 
-    pub fn new_from_string<'a, I>(n: I, t: I, p: I, s: &str) -> Grammar
+    pub fn new_from_string<'a, I>(n: I, t: I, p: I, s: &str) -> Result<Grammar, GrammarError>
     where
         I: IntoIterator<Item = &'a str>,
     {
-        let n: HashSet<Symbol> = n.into_iter().map(|s| Symbol::new(s).unwrap()).collect();
-        let t: HashSet<Symbol> = t.into_iter().map(|s| Symbol::new(s).unwrap()).collect();
-        let p: Vec<Production> = Production::from_iter(p);
-        let s: Symbol = Symbol::new(s).unwrap();
+        let n = n
+            .into_iter()
+            .map(|s| Symbol::new(s))
+            .fold_results(HashSet::new(), |mut acc, x| {
+                acc.insert(x);
+                acc
+            });
+        let t = t
+            .into_iter()
+            .map(|s| Symbol::new(s))
+            .fold_results(HashSet::new(), |mut acc, x| {
+                acc.insert(x);
+                acc
+            });
 
-        Grammar::new(n, t, p, s)
+        let p = Production::from_iter(p);
+        let s = Symbol::new(s);
+
+        match (n, t, p, s) {
+            (Ok(n), Ok(t), Ok(p), Ok(s)) => Grammar::new(n, t, p, s),
+            (Err(_), _, _, _) => Err(GrammarError::WrongNonTerminals),
+            (_, Err(_), _, _) => Err(GrammarError::WrongTerminals),
+            (_, _, Err(e), _) => Err(GrammarError::ProductionError(e)),
+            (_, _, _, Err(e)) => Err(GrammarError::SymbolError(e)),
+        }
     }
 
-    pub fn from_string(string: &str) -> Grammar {
-        parser::grammar_from_string(string).unwrap()
+    pub fn from_string(string: &str) -> Result<Grammar, GrammarError> {
+        parser::grammar_from_string(string).map_err(|e| GrammarError::ParserError(e))
     }
 
     pub fn alternatives(&self, symbols: &Vec<Symbol>) -> Vec<Vec<Symbol>> {
@@ -66,7 +137,7 @@ impl Grammar {
         alternatives
     }
 
-    pub fn restrict_to<I>(&self, symbols: &I) -> Grammar
+    pub fn restrict_to<I>(&self, symbols: &I) -> Result<Grammar, GrammarError>
     where
         I: IntoIterator<Item = Symbol> + Clone,
     {
@@ -75,7 +146,9 @@ impl Grammar {
         let t: HashSet<Symbol> = symbols.intersection(&self.t).cloned().collect();
 
         if !symbols.contains(&self.s) {
-            panic!("Restricting the grammar lead to a grammar without start symbol");
+            return Err(GrammarError::NoStartSymbol(Some(
+                "estricting the grammar lead to a grammar without start symbol".to_string(),
+            )));
         }
 
         let p: Vec<Production> = self
@@ -85,12 +158,12 @@ impl Grammar {
             .cloned()
             .collect();
 
-        Grammar {
+        Ok(Grammar {
             n: n,
             t: t,
             p: p,
             s: self.s.clone(),
-        }
+        })
     }
 
     pub fn productives(&self) -> HashSet<Symbol> {
@@ -138,14 +211,14 @@ impl Grammar {
 }
 
 pub fn grammar(string: &str) -> Grammar {
-    Grammar::from_string(string)
+    Grammar::from_string(string).unwrap()
 }
 
 pub fn grammar_iter<'a, I>(n: I, t: I, p: I, s: &str) -> Grammar
 where
     I: IntoIterator<Item = &'a str>,
 {
-    Grammar::new_from_string(n, t, p, s)
+    Grammar::new_from_string(n, t, p, s).unwrap()
 }
 
 #[cfg(test)]
@@ -185,7 +258,7 @@ mod tests {
             },
         ];
 
-        let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b");
+        let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
         assert_eq!(g.s, s_check, "Parsed start symbol is not the one expected");
         assert_eq!(
             g.n, n_check,
@@ -202,14 +275,22 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    pub fn from_string_panic() {
-        Grammar::from_string("S ->\n -> a | B\nB -> b");
+    pub fn from_string_error() {
+        match Grammar::from_string("S ->\n -> a | B\nB -> b") {
+            Ok(_) => panic!("grammar from string should return error"),
+            Err(e) => match e {
+                GrammarError::ParserError(_) => (),
+                e => panic!(
+                    "Creation of grammar from test input should return a ParserError but returned Err \"{}\" instead",
+                    e
+                ),
+            }
+        }
     }
 
     #[test]
     pub fn alternatives() {
-        let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b");
+        let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
         let a_check = vec![
             vec![Symbol::new("a").unwrap()],
             vec![Symbol::new("B").unwrap()],
@@ -224,7 +305,7 @@ mod tests {
 
     #[test]
     pub fn alternatives_empty() {
-        let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b");
+        let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
 
         assert!(
             g.alternatives(&vec![Symbol::new("a").unwrap()]).is_empty(),
@@ -234,11 +315,14 @@ mod tests {
 
     #[test]
     pub fn restrict_to() {
-        let g_restricted = Grammar::from_string("S -> A\nA -> a | B\nB -> b").restrict_to(&vec![
-            Symbol::new("S").unwrap(),
-            Symbol::new("A").unwrap(),
-            Symbol::new("a").unwrap(),
-        ]);
+        let g_restricted = Grammar::from_string("S -> A\nA -> a | B\nB -> b")
+            .unwrap()
+            .restrict_to(&vec![
+                Symbol::new("S").unwrap(),
+                Symbol::new("A").unwrap(),
+                Symbol::new("a").unwrap(),
+            ])
+            .unwrap();
 
         let s_check: Symbol = Symbol::new("S").unwrap();
         let n_check: HashSet<Symbol> = vec![Symbol::new("S").unwrap(), Symbol::new("A").unwrap()]
@@ -275,10 +359,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     pub fn restrict_to_panic_start_symbol() {
-        Grammar::from_string("S -> A\nA -> a | B\nB -> b")
-            .restrict_to(&vec![Symbol::new("A").unwrap(), Symbol::new("a").unwrap()]);
+        match Grammar::from_string("S -> A\nA -> a | B\nB -> b")
+            .unwrap()
+            .restrict_to(&vec![Symbol::new("A").unwrap(), Symbol::new("a").unwrap()]) {
+                Ok(_) => panic!("restricting grammar should return error"),
+                Err(e) => match e {
+                    GrammarError::NoStartSymbol(_) => (),
+                    e => panic!(
+                        "Creation of grammar from test input should return a NoStartSymbol error but returned Err \"{}\" instead",
+                        e
+                    ),
+            }
+            }
     }
 
     #[test]
@@ -303,7 +396,8 @@ mod tests {
             t_check.clone(),
             p_check.clone(),
             s_check.clone(),
-        );
+        )
+        .unwrap();
 
         assert_eq!(
             g.s, s_check,
@@ -340,7 +434,8 @@ mod tests {
                 rhs: vec![Symbol::new("a").unwrap()],
             },
         ];
-        let g = Grammar::new_from_string(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
+        let g = Grammar::new_from_string(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S")
+            .unwrap();
 
         assert_eq!(
             g.s, s_check,

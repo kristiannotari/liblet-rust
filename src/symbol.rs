@@ -84,8 +84,8 @@ impl Symbol {
         c.is_ascii_graphic() || c == &EMPTY_WORD
     }
 
-    pub fn symbols_from_string(string: &str) -> Vec<Symbol> {
-        parser::symbols_from_string(string).unwrap()
+    pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, parser::ParserError> {
+        parser::symbols_from_string(string)
     }
 }
 
@@ -94,7 +94,7 @@ pub fn symbol(string: &str) -> Symbol {
 }
 
 pub fn symbols(string: &str) -> Vec<Symbol> {
-    Symbol::symbols_from_string(string)
+    Symbol::symbols_from_string(string).unwrap()
 }
 
 #[cfg(test)]
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn symbols_from_string() {
         let symbols = vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap(), Symbol::new("a").unwrap()];
-        assert_eq!(Symbol::symbols_from_string("A B a"), symbols, "Parsed symbols");
+        assert_eq!(Symbol::symbols_from_string("A B a").unwrap(), symbols, "Parsed symbols");
     }
 
     #[test]

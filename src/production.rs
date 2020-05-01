@@ -1,7 +1,35 @@
 use crate::parser;
-use crate::symbol::Symbol;
+use crate::parser::ParserError;
+use crate::symbol::{Symbol, SymbolError};
+use itertools::Itertools;
 use std::collections::HashSet;
+use std::error::Error;
 use std::fmt;
+
+#[derive(Debug, PartialEq)]
+pub enum ProductionError {
+    NoLhs,
+    NoRhs,
+    SymbolError(SymbolError),
+    ParserError(ParserError),
+}
+
+impl fmt::Display for ProductionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProductionError::NoLhs => write!(f, "ProductionError: no lhs in production"),
+            ProductionError::NoRhs => write!(f, "ProductionError: no rhs in production"),
+            ProductionError::SymbolError(e) => {
+                write!(f, "ProductionError: symbol error encountered = {}", e)
+            }
+            ProductionError::ParserError(e) => {
+                write!(f, "ProductionError: parser error encountered = {}", e)
+            }
+        }
+    }
+}
+
+impl Error for ProductionError {}
 
 pub enum ProductionPredicate {
     LhsEquals(Vec<Symbol>),
@@ -42,28 +70,47 @@ impl fmt::Display for Production {
 }
 
 impl Production {
-    pub fn new<I>(lhs: I, rhs: I) -> Production
+    pub fn new<I>(lhs: I, rhs: I) -> Result<Production, ProductionError>
     where
         I: IntoIterator<Item = Symbol>,
     {
-        Production {
-            lhs: lhs.into_iter().collect(),
-            rhs: rhs.into_iter().collect(),
+        let lhs: Vec<Symbol> = lhs.into_iter().collect();
+        let rhs: Vec<Symbol> = rhs.into_iter().collect();
+
+        if lhs.is_empty() {
+            return Err(ProductionError::NoLhs);
         }
+        if rhs.is_empty() {
+            return Err(ProductionError::NoRhs);
+        }
+
+        Ok(Production { lhs: lhs, rhs: rhs })
     }
 
-    pub fn new_from_string<'a, I>(lhs: I, rhs: I) -> Production
+    pub fn new_from_string<'a, I>(lhs: I, rhs: I) -> Result<Production, ProductionError>
     where
         I: IntoIterator<Item = &'a str>,
     {
-        Production::new(
+        let lhs =
             lhs.into_iter()
-                .map(|s| Symbol::new(s).unwrap())
-                .collect::<Vec<Symbol>>(),
+                .map(|s: &str| Symbol::new(s))
+                .fold_results(Vec::new(), |mut acc, x| {
+                    acc.push(x);
+                    acc
+                });
+        let rhs =
             rhs.into_iter()
-                .map(|s| Symbol::new(s).unwrap())
-                .collect::<Vec<Symbol>>(),
-        )
+                .map(|s: &str| Symbol::new(s))
+                .fold_results(Vec::new(), |mut acc, x| {
+                    acc.push(x);
+                    acc
+                });
+
+        match (lhs, rhs) {
+            (Ok(lhs), Ok(rhs)) => Production::new(lhs, rhs),
+            (Err(e), _) => Err(ProductionError::SymbolError(e)),
+            (_, Err(e)) => Err(ProductionError::SymbolError(e)),
+        }
     }
 
     pub fn lhs(&self) -> Vec<Symbol> {
@@ -80,21 +127,21 @@ impl Production {
         symbols.into_iter().collect()
     }
 
-    pub fn from_string(string: &str) -> Vec<Production> {
-        parser::productions_from_string(string).unwrap()
+    pub fn from_string(string: &str) -> Result<Vec<Production>, ProductionError> {
+        parser::productions_from_string(string).map_err(|e| ProductionError::ParserError(e))
     }
 
-    pub fn from_iter<'a, I>(strings: I) -> Vec<Production>
+    pub fn from_iter<'a, I>(strings: I) -> Result<Vec<Production>, ProductionError>
     where
         I: IntoIterator<Item = &'a str>,
     {
         let mut p: Vec<Production> = Vec::new();
 
         for string in strings {
-            p.append(&mut Production::from_string(string))
+            p.append(&mut Production::from_string(string)?)
         }
 
-        p
+        Ok(p)
     }
 
     pub fn such_that(predicate: ProductionPredicate) -> Box<dyn FnMut(&&Production) -> bool> {
@@ -107,17 +154,18 @@ pub fn production(lhs: &str, rhs: &str) -> Production {
         parser::symbols_from_string(lhs).unwrap(),
         parser::symbols_from_string(rhs).unwrap(),
     )
+    .unwrap()
 }
 
 pub fn productions(string: &str) -> Vec<Production> {
-    Production::from_string(string)
+    Production::from_string(string).unwrap()
 }
 
 pub fn productions_iter<'a, I>(strings: I) -> Vec<Production>
 where
     I: IntoIterator<Item = &'a str>,
 {
-    Production::from_iter(strings)
+    Production::from_iter(strings).unwrap()
 }
 
 #[cfg(test)]
@@ -147,16 +195,24 @@ mod tests {
         ];
 
         assert_eq!(
-            Production::from_string("S -> A B\nA -> a | B\nB -> b"),
+            Production::from_string("S -> A B\nA -> a | B\nB -> b").unwrap(),
             p_check,
             "Parsed production rules are not those expected"
         );
     }
 
     #[test]
-    #[should_panic]
-    pub fn from_string_panic() {
-        Production::from_string("S ->\n -> a | B\nB -> b");
+    pub fn from_string_error() {
+        match Production::from_string("S ->\n -> a | B\nB -> b") {
+            Ok(_) => panic!("production from string should return error"),
+            Err(e) => match e {
+                ProductionError::ParserError(_) => (),
+                e => panic!(
+                    "Creation of productions from test input should return a ParserError but returned Err \"{}\" instead",
+                    e
+                ),
+            }
+        }
     }
 
     #[test]
@@ -279,7 +335,7 @@ mod tests {
         let filter = Production::such_that(ProductionPredicate::LhsEquals(vec![
             Symbol::new("T").unwrap()
         ]));
-        let productions = Production::from_string("S -> A | B\nA -> a\nT -> t\nB -> B");
+        let productions = Production::from_string("S -> A | B\nA -> a\nT -> t\nB -> B").unwrap();
 
         let productions_iter = productions.clone();
         let mut filtered = productions_iter.iter().filter(filter);
@@ -304,7 +360,7 @@ mod tests {
         };
 
         assert_eq!(
-            Production::new(p_check.lhs(), p_check.rhs()),
+            Production::new(p_check.lhs(), p_check.rhs()).unwrap(),
             p_check,
             "Created production rule is not the one expected"
         );
@@ -318,7 +374,7 @@ mod tests {
         };
 
         assert_eq!(
-            Production::new_from_string(vec!["S"], vec!["A", "B"]),
+            Production::new_from_string(vec!["S"], vec!["A", "B"]).unwrap(),
             p_check,
             "Created production rule is not the one expected"
         );

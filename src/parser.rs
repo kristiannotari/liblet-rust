@@ -9,7 +9,7 @@ const PRODUCTION_SEP: &str = "->";
 const PRODUCTION_OR: &str = "|";
 const PRODUCTION_SPACE: &str = " ";
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParserError {
     NoProductions,
     ProductionNoLhs,
