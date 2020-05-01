@@ -1,5 +1,5 @@
-use crate::parser;
-use crate::parser::ParserError;
+use crate::tokenizer;
+use crate::tokenizer::TokenizerError;
 use crate::production::{Production, ProductionError};
 use crate::symbol::{Symbol, SymbolError};
 use itertools::Itertools;
@@ -14,7 +14,7 @@ pub enum GrammarError {
     WrongStartSymbol(Symbol),
     SymbolError(SymbolError),
     ProductionError(ProductionError),
-    ParserError(ParserError),
+    TokenizerError(TokenizerError),
     NoStartSymbol(Option<String>),
 }
 
@@ -42,8 +42,8 @@ impl fmt::Display for GrammarError {
             GrammarError::ProductionError(e) => {
                 write!(f, "GrammarError: production error encountered = {}", e)
             },
-            GrammarError::ParserError(e) => {
-                write!(f, "GrammarError: parser error encountered = {}", e)
+            GrammarError::TokenizerError(e) => {
+                write!(f, "GrammarError: tokenizer error encountered = {}", e)
             }
         }
     }
@@ -123,7 +123,7 @@ impl Grammar {
     }
 
     pub fn from_string(string: &str) -> Result<Grammar, GrammarError> {
-        parser::grammar_from_string(string).map_err(|e| GrammarError::ParserError(e))
+        tokenizer::grammar_from_string(string).map_err(|e| GrammarError::TokenizerError(e))
     }
 
     pub fn alternatives(&self, symbols: &Vec<Symbol>) -> Vec<Vec<Symbol>> {
@@ -279,9 +279,9 @@ mod tests {
         match Grammar::from_string("S ->\n -> a | B\nB -> b") {
             Ok(_) => panic!("grammar from string should return error"),
             Err(e) => match e {
-                GrammarError::ParserError(_) => (),
+                GrammarError::TokenizerError(_) => (),
                 e => panic!(
-                    "Creation of grammar from test input should return a ParserError but returned Err \"{}\" instead",
+                    "Creation of grammar from test input should return a TokenizerError but returned Err \"{}\" instead",
                     e
                 ),
             }

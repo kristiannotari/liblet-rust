@@ -10,7 +10,7 @@ const PRODUCTION_OR: &str = "|";
 const PRODUCTION_SPACE: &str = " ";
 
 #[derive(Debug, PartialEq)]
-pub enum ParserError {
+pub enum TokenizerError {
     NoProductions,
     ProductionNoLhs,
     ProductionNoRhs(String),
@@ -21,56 +21,56 @@ pub enum ParserError {
     InvalidSymbol(String),
 }
 
-impl fmt::Display for ParserError {
+impl fmt::Display for TokenizerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParserError::NoProductions => write!(f, "ParserError: No productions found in input"),
-            ParserError::ProductionNoLhs => write!(
+            TokenizerError::NoProductions => write!(f, "TokenizerError: No productions found in input"),
+            TokenizerError::ProductionNoLhs => write!(
                 f,
-                "ParserError: Expected left hand side for production rules (form A {} B)",
+                "TokenizerError: Expected left hand side for production rules (form A {} B)",
                 PRODUCTION_SEP
             ),
-            ParserError::ProductionNoRhs(lhs) => write!(
+            TokenizerError::ProductionNoRhs(lhs) => write!(
                 f,
-                "ParserError: Expected right hand side of production rule {} {} ...",
+                "TokenizerError: Expected right hand side of production rule {} {} ...",
                 lhs, PRODUCTION_SEP
             ),
-            ParserError::ProductionMultipleOneLine(index) => write!(
+            TokenizerError::ProductionMultipleOneLine(index) => write!(
                 f,
-                "ParserError: Too many production rule on the same line on line {}",
+                "TokenizerError: Too many production rule on the same line on line {}",
                 index
             ),
-            ParserError::ProductionsNoStartSymbol => write!(
+            TokenizerError::ProductionsNoStartSymbol => write!(
                 f,
-                "ParserError: No start symbol found in production rules. It must start with a capital letter",
+                "TokenizerError: No start symbol found in production rules. It must start with a capital letter",
             ),
-            ParserError::ProductionsTooManyStartSymbols(lhs) => write!(
+            TokenizerError::ProductionsTooManyStartSymbols(lhs) => write!(
                 f,
-                "ParserError: Too many start symbols found in left hand side \"{}\" of production rule",
+                "TokenizerError: Too many start symbols found in left hand side \"{}\" of production rule",
                 lhs
             ),
-            ParserError::NoSymbols => write!(
+            TokenizerError::NoSymbols => write!(
                 f,
-                "ParserError: No symbols found in input",
+                "TokenizerError: No symbols found in input",
             ),
-            ParserError::InvalidSymbol(symbol) => write!(
+            TokenizerError::InvalidSymbol(symbol) => write!(
                 f,
-                "ParserError: Invalid symbol \"{}\" encountered parsing productions",
+                "TokenizerError: Invalid symbol \"{}\" encountered tokenizing productions",
                 symbol
             ),
         }
     }
 }
 
-impl Error for ParserError {}
+impl Error for TokenizerError {}
 
-pub fn grammar_from_string(string: &str) -> Result<Grammar, ParserError> {
+pub fn grammar_from_string(string: &str) -> Result<Grammar, TokenizerError> {
     let p: Vec<Production> = productions_from_string(string)?;
     let mut s: Option<Symbol> = None;
 
     if let Some(p_first) = p.first() {
         if p_first.lhs.len() > 1 {
-            return Err(ParserError::ProductionsTooManyStartSymbols(
+            return Err(TokenizerError::ProductionsTooManyStartSymbols(
                 p_first
                     .lhs
                     .clone()
@@ -110,11 +110,11 @@ pub fn grammar_from_string(string: &str) -> Result<Grammar, ParserError> {
             s: s,
         })
     } else {
-        Err(ParserError::ProductionsNoStartSymbol)
+        Err(TokenizerError::ProductionsNoStartSymbol)
     }
 }
 
-pub fn productions_from_string(string: &str) -> Result<Vec<Production>, ParserError> {
+pub fn productions_from_string(string: &str) -> Result<Vec<Production>, TokenizerError> {
     let mut p: Vec<Production> = Vec::new();
     for (i, rule) in string.trim().lines().enumerate() {
         let mut sides = rule.split_terminator(PRODUCTION_SEP);
@@ -122,12 +122,12 @@ pub fn productions_from_string(string: &str) -> Result<Vec<Production>, ParserEr
             (Some(lhs), Some(rhs), None) => {
                 let lhs = lhs.trim();
                 if lhs.is_empty() {
-                    return Err(ParserError::ProductionNoLhs);
+                    return Err(TokenizerError::ProductionNoLhs);
                 }
                 for rhs in rhs.split(PRODUCTION_OR) {
                     let rhs = rhs.trim();
                     if rhs.is_empty() {
-                        return Err(ParserError::ProductionNoRhs(lhs.to_string()));
+                        return Err(TokenizerError::ProductionNoRhs(lhs.to_string()));
                     }
                     p.push(Production {
                         lhs: symbols_from_string(lhs)?,
@@ -135,33 +135,35 @@ pub fn productions_from_string(string: &str) -> Result<Vec<Production>, ParserEr
                     })
                 }
             }
-            (Some(_), Some(_), Some(_)) => return Err(ParserError::ProductionMultipleOneLine(i)),
-            (Some(lhs), None, _) => {
-                return Err(ParserError::ProductionNoRhs(lhs.trim().to_string()))
+            (Some(_), Some(_), Some(_)) => {
+                return Err(TokenizerError::ProductionMultipleOneLine(i))
             }
-            (None, _, _) => return Err(ParserError::ProductionNoLhs),
+            (Some(lhs), None, _) => {
+                return Err(TokenizerError::ProductionNoRhs(lhs.trim().to_string()))
+            }
+            (None, _, _) => return Err(TokenizerError::ProductionNoLhs),
         }
     }
 
     if p.is_empty() {
-        return Err(ParserError::NoProductions);
+        return Err(TokenizerError::NoProductions);
     }
 
     Ok(p)
 }
 
-pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, ParserError> {
+pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, TokenizerError> {
     let mut symbols: Vec<Symbol> = Vec::new();
     for s in string.split_whitespace() {
         if let Ok(symbol) = Symbol::new(s) {
             symbols.push(symbol)
         } else {
-            return Err(ParserError::InvalidSymbol(s.to_string()));
+            return Err(TokenizerError::InvalidSymbol(s.to_string()));
         }
     }
 
     if symbols.is_empty() {
-        return Err(ParserError::NoSymbols);
+        return Err(TokenizerError::NoSymbols);
     }
 
     Ok(symbols)
@@ -194,8 +196,11 @@ mod tests {
         ];
 
         match super::productions_from_string("S -> A B\nA -> a | B\nB -> b") {
-            Ok(p) => assert_eq!(p, p_check, "Parsed production rules are not those expected"),
-            Err(e) => panic!("Error parsing productions from string: {}", e),
+            Ok(p) => assert_eq!(
+                p, p_check,
+                "Tokenized production rules are not those expected"
+            ),
+            Err(e) => panic!("Error tokenizing productions from string: {}", e),
         }
     }
 
@@ -204,10 +209,10 @@ mod tests {
         match super::productions_from_string("") {
             Ok(_) => panic!("Productions from test input should return an Err result"),
             Err(e) => match e {
-                ParserError::NoProductions => (),
+                TokenizerError::NoProductions => (),
                 e => panic!(
                     "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::NoProductions,
+                    TokenizerError::NoProductions,
                     e
                 ),
             },
@@ -219,10 +224,10 @@ mod tests {
         match super::productions_from_string("-> B") {
             Ok(a) => {println!("ret: {:?}", a); panic!("Productions from test input should return an Err result")},
             Err(e) => match e {
-                ParserError::ProductionNoLhs => (),
+                TokenizerError::ProductionNoLhs => (),
                 e => panic!(
                     "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::NoProductions,
+                    TokenizerError::NoProductions,
                     e
                 ),
             },
@@ -235,10 +240,10 @@ mod tests {
         match super::productions_from_string(format!("{} -> ", lhs).as_str()) {
             Ok(_) => panic!("Productions from test input should return an Err result"),
             Err(e) => match e {
-                ParserError::ProductionNoRhs(_) => (),
+                TokenizerError::ProductionNoRhs(_) => (),
                 e => panic!(
                     "Productions from  should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::ProductionNoRhs(lhs.to_string()),
+                    TokenizerError::ProductionNoRhs(lhs.to_string()),
                     e
                 ),
             },
@@ -251,10 +256,10 @@ mod tests {
         match super::productions_from_string(lhs) {
             Ok(_) => panic!("Productions from test input should return an Err result"),
             Err(e) => match e {
-                ParserError::ProductionNoRhs(_) => (),
+                TokenizerError::ProductionNoRhs(_) => (),
                 e => panic!(
                     "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::ProductionNoRhs(lhs.to_string()),
+                    TokenizerError::ProductionNoRhs(lhs.to_string()),
                     e
                 ),
             },
@@ -270,10 +275,10 @@ mod tests {
                 panic!("Productions from test input should return an Err result")
             },
             Err(e) => match e {
-                ParserError::ProductionNoRhs(_) => (),
+                TokenizerError::ProductionNoRhs(_) => (),
                 e => panic!(
                     "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::ProductionNoRhs(lhs.to_string()),
+                    TokenizerError::ProductionNoRhs(lhs.to_string()),
                     e
                 ),
             },
@@ -286,10 +291,10 @@ mod tests {
         match super::productions_from_string("A -> B -> C") {
             Ok(_) => panic!("Productions from test input should return an Err result"),
             Err(e) => match e {
-                ParserError::ProductionMultipleOneLine(i) => assert_eq!(i, expected_index, "Production rule error should come from the {}° line not {}° line", expected_index, i),
+                TokenizerError::ProductionMultipleOneLine(i) => assert_eq!(i, expected_index, "Production rule error should come from the {}° line not {}° line", expected_index, i),
                 e => panic!(
                     "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::ProductionMultipleOneLine(expected_index),
+                    TokenizerError::ProductionMultipleOneLine(expected_index),
                     e
                 ),
             },
@@ -330,21 +335,24 @@ mod tests {
 
         match super::grammar_from_string("S -> A B\nA -> a | B\nB -> b") {
             Ok(g) => {
-                assert_eq!(g.s, s_check, "Parsed start symbol is not the one expected");
+                assert_eq!(
+                    g.s, s_check,
+                    "Tokenized start symbol is not the one expected"
+                );
                 assert_eq!(
                     g.n, n_check,
-                    "Parsed non terminal symbols are not those expected"
+                    "Tokenized non terminal symbols are not those expected"
                 );
                 assert_eq!(
                     g.t, t_check,
-                    "Parsed terminal symbols are not those expected"
+                    "Tokenized terminal symbols are not those expected"
                 );
                 assert_eq!(
                     g.p, p_check,
-                    "Parsed production rules are not those expected"
+                    "Tokenized production rules are not those expected"
                 );
             }
-            Err(e) => panic!("Error parsing grammar from string: {}", e),
+            Err(e) => panic!("Error tokenizing grammar from string: {}", e),
         }
     }
 
@@ -352,12 +360,12 @@ mod tests {
     fn grammar_from_string_too_many_start_symbols() {
         let expected_lhs = "A B".to_string();
         match super::grammar_from_string(format!("{} -> A\nA -> a | B\nB -> b", expected_lhs).as_str()) {
-            Ok(_) => panic!("Parsing grammar from test input should return an Err result"),
+            Ok(_) => panic!("Tokenizing grammar from test input should return an Err result"),
             Err(e) => match e {
-                ParserError::ProductionsTooManyStartSymbols(lhs) => assert_eq!(expected_lhs, lhs, "Parsing grammar error lhs string should be {} not {}", expected_lhs, lhs),
+                TokenizerError::ProductionsTooManyStartSymbols(lhs) => assert_eq!(expected_lhs, lhs, "Tokenizing grammar error lhs string should be {} not {}", expected_lhs, lhs),
                 e => panic!(
-                    "Parsing grammar from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::ProductionsTooManyStartSymbols(expected_lhs),
+                    "Tokenizing grammar from test input should return Err \"{}\" but returned Err \"{}\" instead",
+                    TokenizerError::ProductionsTooManyStartSymbols(expected_lhs),
                     e
                 ),
             },
@@ -372,22 +380,22 @@ mod tests {
             Ok(symbols) => {
                 assert_eq!(
                     symbols, expected_symbols,
-                    "Parsed symbols are not the ones expected"
+                    "Tokenized symbols are not the ones expected"
                 );
             }
-            Err(e) => panic!("Error parsing symbols from string: {}", e),
+            Err(e) => panic!("Error tokenizing symbols from string: {}", e),
         }
     }
 
     #[test]
     fn symbols_from_string_no_symbols() {
         match super::symbols_from_string("  ") {
-            Ok(_) => panic!("Parsing symbols from test input should return an Err result"),
+            Ok(_) => panic!("Tokenizing symbols from test input should return an Err result"),
             Err(e) => match e {
-                ParserError::NoSymbols => (),
+                TokenizerError::NoSymbols => (),
                 e => panic!(
-                    "Parsing symbols from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::NoSymbols,
+                    "Tokenizing symbols from test input should return Err \"{}\" but returned Err \"{}\" instead",
+                    TokenizerError::NoSymbols,
                     e
                 ),
             },
@@ -398,12 +406,12 @@ mod tests {
     fn symbols_from_string_invalid_symbol() {
         let test_input = "®".to_string();
         match super::symbols_from_string(format!("A {}", test_input).as_str()) {
-            Ok(_) => panic!("Parsing symbols from test input should return an Err result"),
+            Ok(_) => panic!("Tokenizing symbols from test input should return an Err result"),
             Err(e) => match e {
-                ParserError::InvalidSymbol(s) => assert_eq!(s, test_input),
+                TokenizerError::InvalidSymbol(s) => assert_eq!(s, test_input),
                 e => panic!(
-                    "Parsing symbols from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    ParserError::InvalidSymbol(test_input),
+                    "Tokenizing symbols from test input should return Err \"{}\" but returned Err \"{}\" instead",
+                    TokenizerError::InvalidSymbol(test_input),
                     e
                 ),
             },

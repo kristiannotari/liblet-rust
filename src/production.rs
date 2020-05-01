@@ -1,5 +1,5 @@
-use crate::parser;
-use crate::parser::ParserError;
+use crate::tokenizer;
+use crate::tokenizer::TokenizerError;
 use crate::symbol::{Symbol, SymbolError};
 use itertools::Itertools;
 use std::collections::HashSet;
@@ -11,7 +11,7 @@ pub enum ProductionError {
     NoLhs,
     NoRhs,
     SymbolError(SymbolError),
-    ParserError(ParserError),
+    TokenizerError(TokenizerError),
 }
 
 impl fmt::Display for ProductionError {
@@ -22,8 +22,8 @@ impl fmt::Display for ProductionError {
             ProductionError::SymbolError(e) => {
                 write!(f, "ProductionError: symbol error encountered = {}", e)
             }
-            ProductionError::ParserError(e) => {
-                write!(f, "ProductionError: parser error encountered = {}", e)
+            ProductionError::TokenizerError(e) => {
+                write!(f, "ProductionError: tokenizer error encountered = {}", e)
             }
         }
     }
@@ -128,7 +128,7 @@ impl Production {
     }
 
     pub fn from_string(string: &str) -> Result<Vec<Production>, ProductionError> {
-        parser::productions_from_string(string).map_err(|e| ProductionError::ParserError(e))
+        tokenizer::productions_from_string(string).map_err(|e| ProductionError::TokenizerError(e))
     }
 
     pub fn from_iter<'a, I>(strings: I) -> Result<Vec<Production>, ProductionError>
@@ -151,8 +151,8 @@ impl Production {
 
 pub fn production(lhs: &str, rhs: &str) -> Production {
     Production::new(
-        parser::symbols_from_string(lhs).unwrap(),
-        parser::symbols_from_string(rhs).unwrap(),
+        tokenizer::symbols_from_string(lhs).unwrap(),
+        tokenizer::symbols_from_string(rhs).unwrap(),
     )
     .unwrap()
 }
@@ -206,9 +206,9 @@ mod tests {
         match Production::from_string("S ->\n -> a | B\nB -> b") {
             Ok(_) => panic!("production from string should return error"),
             Err(e) => match e {
-                ProductionError::ParserError(_) => (),
+                ProductionError::TokenizerError(_) => (),
                 e => panic!(
-                    "Creation of productions from test input should return a ParserError but returned Err \"{}\" instead",
+                    "Creation of productions from test input should return a TokenizerError but returned Err \"{}\" instead",
                     e
                 ),
             }

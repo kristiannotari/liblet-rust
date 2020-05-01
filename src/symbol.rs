@@ -1,4 +1,4 @@
-use crate::parser;
+use crate::tokenizer;
 use std::error::Error;
 use std::fmt;
 
@@ -84,8 +84,8 @@ impl Symbol {
         c.is_ascii_graphic() || c == &EMPTY_WORD
     }
 
-    pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, parser::ParserError> {
-        parser::symbols_from_string(string)
+    pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, tokenizer::TokenizerError> {
+        tokenizer::symbols_from_string(string)
     }
 }
 
