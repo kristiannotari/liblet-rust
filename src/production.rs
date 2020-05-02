@@ -1,3 +1,12 @@
+//! Module for handling all productions related operations.
+//!
+//! Its goal is to emulate a formal grammar production.
+//!
+//! It defines a `Production` type which can be used to conveniently work with productions in grammars,
+//! and provide abstraction over normal collection of symbols, organized in a left and right hand side (form A -> B).
+//!
+//! It can be easily constructed from `&str`s or collections of [Symbol](../symbol/struct.Symbol.html)s.
+
 use crate::symbol::{Symbol, SymbolError};
 use crate::tokenizer;
 use crate::tokenizer::TokenizerError;
@@ -8,9 +17,17 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum ProductionError {
+    /// Error returned for trying to create a Production with an empty / missing left hand side.
+    /// Left hand side of productions should be an ordered collection of n >= 1 symbols.
     NoLhs,
+    /// Error returned for trying to create a Production with an empty / missing right hand side.
+    /// Right hand side of productions should be an ordered collection of n >= 1 symbols.
     NoRhs,
+    /// Error returned for trying to create a Production with invalid symbols.
+    /// To be expected when creating productions from raw string inputs.
     SymbolError(SymbolError),
+    /// Error returned for trying to create a Production with a bad formatted raw input string.
+    /// Properly formatted productions as strings are described in the ???
     TokenizerError(TokenizerError),
 }
 
@@ -37,15 +54,35 @@ impl std::convert::From<TokenizerError> for ProductionError {
     }
 }
 
+/// A predicate for checking if production match some expected characteristics.
+///
+/// You can test a predicate on a Production by using the [test]: #method.test method.
 pub enum ProductionPredicate {
+    /// It checks if the left hand side of the production equals the given ordered collection of symbols.
     LhsEquals(Vec<Symbol>),
+    /// It checks if the right hand side of the production equals the given ordered collection of symbols.
     RhsEquals(Vec<Symbol>),
+    /// It checks if the right hand side length (symbols count) of the production equals the given number.
     RhsLengthEquals(usize),
+    /// It checks if the right hand side of the production ends with the given ordered collection of symbols.
     RhsIsSuffixOf(Vec<Symbol>),
 }
 
 impl ProductionPredicate {
-    fn test(&self, p: &Production) -> bool {
+    /// Test if a production match the predicate
+    ///
+    /// # Examples
+    /// ```rust
+    /// use liblet::production::{ProductionPredicate, production};
+    /// use liblet::symbol::symbol;
+    ///
+    /// // create a new production "A -> B C"
+    /// let p = production("A", "B C");
+    /// let rhs = vec![symbol("B"), symbol("C")];
+    ///
+    /// assert!(ProductionPredicate::RhsEquals(rhs).test(&p));
+    /// ```
+    pub fn test(&self, p: &Production) -> bool {
         match self {
             ProductionPredicate::LhsEquals(symbols) => p.lhs() == *symbols,
             ProductionPredicate::RhsEquals(symbols) => p.rhs() == *symbols,
@@ -55,6 +92,10 @@ impl ProductionPredicate {
     }
 }
 
+/// The main type of this module.
+///
+/// It allows to abstract over grammar productions, having a defined left and right and side,
+/// which are ordered collections of symbols.
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Production {
     lhs: Vec<Symbol>,
@@ -76,6 +117,25 @@ impl fmt::Display for Production {
 }
 
 impl Production {
+    /// Creates a new Production based on the left and right hand side given as collections of symbols.
+    ///
+    /// # Errors
+    /// It can return an error if either the left or right hand side is empty.
+    ///
+    /// ## Examples
+    /// ```rust
+    /// use liblet::production::Production;
+    /// use liblet::symbol::symbol;
+    ///
+    /// // create left and right hand side for production "A -> B C"
+    /// let lhs = vec![symbol("A")];
+    /// let rhs = vec![symbol("B"), symbol("C")];
+    ///
+    /// // create a new production based on the previously defined left and right hand side
+    /// let production = Production::new(lhs, rhs);
+    ///
+    /// assert!(production.is_ok());
+    /// ```
     pub fn new<I>(lhs: I, rhs: I) -> Result<Production, ProductionError>
     where
         I: IntoIterator<Item = Symbol>,
@@ -93,6 +153,26 @@ impl Production {
         Ok(Production { lhs: lhs, rhs: rhs })
     }
 
+    /// Creates a new Production based on the left and right hand side given as collections of `&str`.
+    ///
+    /// # Errors
+    /// It can return an error if the strings are not convertible to [Symbol](../symbol/struct.Symbol.html)s.
+    /// Otherwise, it acts like [new](#method.new).
+    ///
+    /// ## Examples
+    /// ```rust
+    /// use liblet::production::Production;
+    /// use liblet::symbol::symbol;
+    ///
+    /// // create left and right hand side for production "A -> B C"
+    /// let lhs = vec!["A"];
+    /// let rhs = vec!["B", "C"];
+    ///
+    /// // create a new production based on the previously defined left and right hand side
+    /// let production = Production::new_from_string(lhs, rhs);
+    ///
+    /// assert!(production.is_ok());
+    /// ```
     pub fn new_from_string<'a, I>(lhs: I, rhs: I) -> Result<Production, ProductionError>
     where
         I: IntoIterator<Item = &'a str>,
