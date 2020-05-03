@@ -47,6 +47,11 @@ impl Error for SymbolError {}
 /// 
 /// Checking if a symbol is terminal or non terminal can be done using the according boolean methods you can find below.
 /// 
+/// A symbol can be created easily from strings, following these rules:
+/// - string can contain any number of whitespace
+/// - string has to contain at least one valid char (see above)
+/// - string can't contain anything else
+/// 
 /// It also implements the `IntoIterator` to iterate over the collection of chars which make up the Symbol.
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Symbol {
