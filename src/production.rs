@@ -96,6 +96,25 @@ impl ProductionPredicate {
 ///
 /// It allows to abstract over grammar productions, having a defined left and right and side,
 /// which are ordered collections of symbols.
+///
+/// A production can be created easily from strings, following these rules:
+/// - string can contain any number of whitespace
+/// - multiple productions are divided by '\n' char
+/// - string must have a sequence of symbol to the left of a "->"
+/// - string must have a sequence of alternatives to the right of a "->"
+/// - string can have only one "->" per production (per line)
+/// - a sequence of symbol is a sequence of symbols divided by some whitespace
+/// - a sequence of alternative is one ore more sequence of symbols divided by the "|" char
+/// - string can't contain anything else
+///
+/// # Examples
+/// `A -> B` leads to a production from the symbol `A` to the symbol `B`
+///
+/// `A -> B | C` leads to two productions, one for each alternative (`A` -> `B` and `A` -> `C`)
+///
+/// `A -> B\nA -> C` leads to the same result of the above one, defining the two productions separately
+///
+/// `A -> ` will results in an error, because there's no right hand side for the production
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Production {
     lhs: Vec<Symbol>,
@@ -122,7 +141,7 @@ impl Production {
     /// # Errors
     /// It can return an error if either the left or right hand side is empty.
     ///
-    /// ## Examples
+    /// # Examples
     /// ```rust
     /// use liblet::production::Production;
     /// use liblet::symbol::symbol;
@@ -159,7 +178,7 @@ impl Production {
     /// It can return an error if the strings are not convertible to [Symbol](../symbol/struct.Symbol.html)s.
     /// Otherwise, it acts like [new](#method.new).
     ///
-    /// ## Examples
+    /// # Examples
     /// ```rust
     /// use liblet::production::Production;
     /// use liblet::symbol::symbol;
@@ -199,20 +218,85 @@ impl Production {
         }
     }
 
+    /// Return the ordered collection of symbol representing the left hand side of the production.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use liblet::production::{Production,production};
+    /// use liblet::symbol::symbol;
+    ///
+    /// // create a production representing "A -> B C"
+    /// let p = production("A", "B C");
+    ///
+    /// assert_eq!(p.lhs(), vec![symbol("A")]);
+    /// ```
     pub fn lhs(&self) -> Vec<Symbol> {
         self.lhs.clone()
     }
 
+    /// Return the ordered collection of symbol representing the right hand side of the production.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use liblet::production::{Production,production};
+    /// use liblet::symbol::symbol;
+    ///
+    /// // create a production representing "A -> B C"
+    /// let p = production("A", "B C");
+    ///
+    /// assert_eq!(p.rhs(), vec![symbol("B"), symbol("C")]);
+    /// ```
     pub fn rhs(&self) -> Vec<Symbol> {
         self.rhs.clone()
     }
 
+    /// Return a set containing all the different symbols which appears on the left
+    /// and right hand side of the production.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use liblet::production::{Production,production};
+    /// use liblet::symbol::{Symbol,symbol};
+    /// use std::collections::HashSet;
+    ///
+    /// // create a production representing "A -> B C"
+    /// let p = production("A", "B C");
+    /// let symbols: HashSet<Symbol> = vec![symbol("A"), symbol("B"), symbol("C")].into_iter().collect();
+    ///
+    /// assert_eq!(p.symbols(), symbols);
+    /// ```
     pub fn symbols(&self) -> HashSet<Symbol> {
         let mut symbols: Vec<Symbol> = self.lhs();
         symbols.append(&mut self.rhs());
         symbols.into_iter().collect()
     }
 
+    /// Create a collection of productions from a raw input string.
+    ///
+    /// # Errors
+    /// Can return an error if the raw string can't be parsed to obtain actual productions both due to wrong
+    /// string formatting (LHS -> RHS | ...)(see [from_string](../symbol/struct.Symbol.html) method from symbols
+    /// for more info about string formatting symbols) and due to production creation error (see production [constructor](#method.new) for more info).
+    ///
+    /// In the case an empty or whitespace only string is given, it just returns an empty collection of productions.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::production::Production;
+    ///
+    /// let result = Production::from_string("
+    ///     A -> B C
+    ///     B -> b
+    /// ")?;
+    ///
+    /// assert_eq!(result.len(), 2);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn from_string(string: &str) -> Result<Vec<Production>, ProductionError> {
         tokenizer::productions_from_string(string)?
             .iter()
@@ -228,6 +312,33 @@ impl Production {
             })
     }
 
+    /// Create a collection of productions from a collection of raw input string.
+    /// Same as [from_string](#method.from_string) but accepts an `IntoIterator`.
+    ///
+    /// # Errors
+    /// Can return an error if any of the raw strings can't be parsed to obtain actual productions both due to wrong
+    /// string formatting (LHS -> RHS | ...)(see [from_string](../symbol/struct.Symbol.html) method from symbols
+    /// for more info about string formatting symbols) and due to production creation error (see production [constructor](#method.new) for more info).
+    ///
+    /// In the case empty or whitespace only strings are given, it just returns an empty collection of productions.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::production::Production;
+    ///
+    /// let result = Production::from_iter(vec![
+    ///     "A -> B C",
+    ///     "B -> b"
+    /// ])?;
+    ///
+    /// assert_eq!(result.len(), 2);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn from_iter<'a, I>(strings: I) -> Result<Vec<Production>, ProductionError>
     where
         I: IntoIterator<Item = &'a str>,
@@ -241,11 +352,54 @@ impl Production {
         Ok(p)
     }
 
+    /// Return a boxed `FnMut` which accepts a production and test the given predicate on it, returning a `bool`ean value.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::production::{Production,ProductionPredicate};
+    /// use liblet::symbol::symbol;
+    ///
+    /// let p = Production::from_string("
+    ///     A -> B C
+    ///     B -> b
+    /// ")?;
+    /// let closure = Production::such_that(ProductionPredicate::RhsEquals(vec![symbol("b")]));
+    /// let expected = Production::new(vec![symbol("B")], vec![symbol("b")])?;
+    /// let mut result = p.iter().filter(closure);
+    ///
+    /// assert_eq!(result.next(), Some(&expected));
+    /// assert_eq!(result.next(), None);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn such_that(predicate: ProductionPredicate) -> Box<dyn FnMut(&&Production) -> bool> {
         Box::new(move |p| predicate.test(&p))
     }
 }
 
+/// Convenience function for creating a production from a pair of raw strings
+/// (left hand side and right hand side).
+///
+/// It returns the production directly,
+/// as opposed to the `Result` returned from the production [constructor](struct.Production.html#method.new).
+///
+/// # Panics
+/// Panics if some error occurred during production creation (see production [consructor](struct.Production.html#method.new) for further details)
+///
+/// # Examples
+/// ```rust
+/// use liblet::production::production;
+/// use liblet::symbol::symbol;
+///
+/// let p = production("A", "B C");
+///
+/// assert_eq!(p.lhs(), vec![symbol("A")]);
+/// assert_eq!(p.rhs(), vec![symbol("B"),symbol("C")]);
+/// ```
 pub fn production(lhs: &str, rhs: &str) -> Production {
     Production::new(
         Symbol::symbols_from_string(lhs).unwrap(),
@@ -254,10 +408,45 @@ pub fn production(lhs: &str, rhs: &str) -> Production {
     .unwrap()
 }
 
+/// Convenience function for creating a collection of productions from a raw string.
+///
+/// It returns the productions directly,
+/// as opposed to the `Result` returned from the production [from_string](struct.Production.html#method.from_string) method.
+///
+/// # Panics
+/// Panics if some error occurred during productions creation (see production [from_string](struct.Production.html#method.from_string) method for further details)
+///
+/// # Examples
+/// ```rust
+/// use liblet::production::productions;
+///
+/// let p = productions("
+///     A -> B C
+///     B -> b
+/// ");
+///
+/// assert_eq!(p.len(), 2);
+/// ```
 pub fn productions(string: &str) -> Vec<Production> {
     Production::from_string(string).unwrap()
 }
 
+/// Convenience function for creating a collection of productions from an `IntoIterator` of strings.
+///
+/// It returns the productions directly,
+/// as opposed to the `Result` returned from the production [from_iter](struct.Production.html#method.from_iter) method.
+///
+/// # Panics
+/// Panics if some error occurred during productions creation (see production [from_iter](struct.Production.html#method.from_iter) method for further details)
+///
+/// # Examples
+/// ```rust
+/// use liblet::production::productions_iter;
+///
+/// let p = productions_iter(vec!["A -> B C", "B -> b"]);
+///
+/// assert_eq!(p.len(), 2);
+/// ```
 pub fn productions_iter<'a, I>(strings: I) -> Vec<Production>
 where
     I: IntoIterator<Item = &'a str>,
