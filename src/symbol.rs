@@ -230,14 +230,14 @@ impl Symbol {
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use liblet::symbol::Symbol;
     /// 
-    /// let result = Symbol::symbols_from_string("A B C")?;
+    /// let result = Symbol::from_string("A B C")?;
     /// 
     /// assert_eq!(result.len(), 3);
     /// #
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, SymbolError> {
+    pub fn from_string(string: &str) -> Result<Vec<Symbol>, SymbolError> {
         tokenizer::symbols_from_string(string).iter().map(|s| Symbol::new(s)).fold_results(Vec::new(), |mut acc, s| { acc.push(s); acc})
     }
 }
@@ -265,10 +265,10 @@ pub fn symbol(string: &str) -> Symbol {
 /// Convenience function for creating a collection of symbols from a raw string.
 /// 
 /// It returns the symbols directly,
-/// as opposed to the `Result` returned from the Symbol `symbols_from_string` method.
+/// as opposed to the `Result` returned from the Symbol `from_string` method.
 ///
 /// # Panics
-/// Panics if some error occurred during symbol creation or string parsing (see Symbol [symbols_from_string](struct.Symbol.html#method.symbols_from_string) method for further details)
+/// Panics if some error occurred during symbol creation or string parsing (see Symbol [from_string](struct.Symbol.html#method.from_string) method for further details)
 /// 
 /// # Examples
 /// ```rust
@@ -279,7 +279,7 @@ pub fn symbol(string: &str) -> Symbol {
 /// assert_eq!(result.len(), 3);
 /// ```
 pub fn symbols(string: &str) -> Vec<Symbol> {
-    Symbol::symbols_from_string(string).unwrap()
+    Symbol::from_string(string).unwrap()
 }
 
 #[cfg(test)]
@@ -370,9 +370,9 @@ mod tests {
     }
 
     #[test]
-    fn symbols_from_string() {
+    fn from_string() {
         let symbols = vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap(), Symbol::new("a").unwrap()];
-        assert_eq!(Symbol::symbols_from_string("A B a").unwrap(), symbols, "Parsed symbols");
+        assert_eq!(Symbol::from_string("A B a").unwrap(), symbols, "Parsed symbols");
     }
 
     #[test]

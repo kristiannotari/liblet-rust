@@ -301,7 +301,7 @@ impl Derivation {
     ///
     /// assert_eq!(d.sentential_form(), vec![symbol("A")]);
     /// ```
-    pub fn step_iter<I>(self, steps: I) -> Result<Derivation, DerivationError>
+    pub fn step_from_iter<I>(self, steps: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = DerivationStep>,
     {
@@ -372,7 +372,7 @@ impl Derivation {
     }
 
     /// Repeated [leftmost](#method.leftmost) for each production index in an ordered collection of productions passed as input
-    pub fn leftmost_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
+    pub fn leftmost_from_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
     {
@@ -385,7 +385,7 @@ impl Derivation {
     }
 
     /// Repeated [leftmost_n](#method.leftmost_n) for each production index in an ordered collection of productions passed as input
-    pub fn leftmost_n_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
+    pub fn leftmost_n_from_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
     {
@@ -459,7 +459,7 @@ impl Derivation {
     }
 
     /// Repeated [rightmost](#method.rightmost) for each production index in an ordered collection of productions passed as input
-    pub fn rightmost_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
+    pub fn rightmost_from_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
     {
@@ -472,7 +472,7 @@ impl Derivation {
     }
 
     /// Repeated [rightmost_n](#method.rightmost_n) for each production index in an ordered collection of productions passed as input
-    pub fn rightmost_n_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
+    pub fn rightmost_n_from_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
     {
@@ -796,7 +796,7 @@ mod tests {
     }
 
     #[test]
-    pub fn step_iter() {
+    pub fn step_from_iter() {
         let g = grammar("S -> A | B\nA -> a");
         let d = super::derivation(g.clone());
         let steps: Vec<DerivationStep> = vec![
@@ -809,7 +809,7 @@ mod tests {
                 index: 0,
             },
         ];
-        match d.step_iter(steps.clone()) {
+        match d.step_from_iter(steps.clone()) {
             Ok(d) => {
                 assert_eq!(d.steps(), steps);
                 assert_eq!(d.sentential_form(), vec![symbol("a")]);
@@ -852,7 +852,7 @@ mod tests {
     }
 
     #[test]
-    pub fn leftmost_iter() {
+    pub fn leftmost_from_iter() {
         let g = grammar("S -> A B | B C\nA -> B\n B -> b");
         let d = super::derivation(g.clone());
         let steps = vec![
@@ -869,7 +869,7 @@ mod tests {
                 index: 0,
             },
         ];
-        match d.leftmost_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index)) {
+        match d.leftmost_from_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index)) {
             Ok(d) => {
                 assert_eq!(d.steps(), steps);
                 assert_eq!(d.sentential_form(), vec![symbol("b"), symbol("B")]);
@@ -913,7 +913,7 @@ mod tests {
     }
 
     #[test]
-    pub fn rightmost_iter() {
+    pub fn rightmost_from_iter() {
         let g = grammar("S -> A B | B\nB -> A\nA -> a");
         let d = super::derivation(g.clone());
         let steps = vec![
@@ -930,7 +930,7 @@ mod tests {
                 index: 1,
             },
         ];
-        match d.rightmost_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index)) {
+        match d.rightmost_from_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index)) {
             Ok(d) => {
                 assert_eq!(d.steps(), steps);
                 assert_eq!(d.sentential_form(), vec![symbol("A"), symbol("a")]);

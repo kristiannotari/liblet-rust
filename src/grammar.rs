@@ -676,11 +676,11 @@ pub fn grammar(string: &str) -> Grammar {
 ///
 /// # Examples
 /// ```rust
-/// use liblet::grammar::grammar_iter;
+/// use liblet::grammar::grammar_quadruple;
 /// use liblet::production::production;
 /// use liblet::symbol::symbol;
 ///
-/// let g = grammar_iter(
+/// let g = grammar_quadruple(
 ///     vec!["A"],
 ///     vec!["a"],
 ///     vec!["A -> a"],
@@ -692,7 +692,7 @@ pub fn grammar(string: &str) -> Grammar {
 /// assert_eq!(g.p(), vec![production("A","a")]);
 /// assert_eq!(g.s(), symbol("A"));
 /// ```
-pub fn grammar_iter<'a, I>(n: I, t: I, p: I, s: &str) -> Grammar
+pub fn grammar_quadruple<'a, I>(n: I, t: I, p: I, s: &str) -> Grammar
 where
     I: IntoIterator<Item = &'a str>,
 {
@@ -907,12 +907,12 @@ mod tests {
     }
 
     #[test]
-    pub fn grammar_iter() {
+    pub fn grammar_quadruple() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
         let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
         let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
-        let g = super::grammar_iter(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
+        let g = super::grammar_quadruple(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
 
         assert_eq!(
             g.s, s_check,

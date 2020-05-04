@@ -402,8 +402,8 @@ impl Production {
 /// ```
 pub fn production(lhs: &str, rhs: &str) -> Production {
     Production::new(
-        Symbol::symbols_from_string(lhs).unwrap(),
-        Symbol::symbols_from_string(rhs).unwrap(),
+        Symbol::from_string(lhs).unwrap(),
+        Symbol::from_string(rhs).unwrap(),
     )
     .unwrap()
 }
@@ -429,29 +429,6 @@ pub fn production(lhs: &str, rhs: &str) -> Production {
 /// ```
 pub fn productions(string: &str) -> Vec<Production> {
     Production::from_string(string).unwrap()
-}
-
-/// Convenience function for creating a collection of productions from an `IntoIterator` of strings.
-///
-/// It returns the productions directly,
-/// as opposed to the `Result` returned from the production [from_iter](struct.Production.html#method.from_iter) method.
-///
-/// # Panics
-/// Panics if some error occurred during productions creation (see production [from_iter](struct.Production.html#method.from_iter) method for further details)
-///
-/// # Examples
-/// ```rust
-/// use liblet::production::productions_iter;
-///
-/// let p = productions_iter(vec!["A -> B C", "B -> b"]);
-///
-/// assert_eq!(p.len(), 2);
-/// ```
-pub fn productions_iter<'a, I>(strings: I) -> Vec<Production>
-where
-    I: IntoIterator<Item = &'a str>,
-{
-    Production::from_iter(strings).unwrap()
 }
 
 #[cfg(test)]
@@ -524,7 +501,7 @@ mod tests {
         ];
 
         assert_eq!(
-            super::productions_iter(vec!["S -> A B", "A -> a", "B -> a | b"]),
+            super::productions("S -> A B\nA -> a\nB -> a | b"),
             p_check,
             "Created production rules are not those expected"
         );
@@ -687,34 +664,6 @@ mod tests {
 
         assert_eq!(
             super::productions("S -> A B\nA -> a"),
-            p_check,
-            "Created production rules are not those expected"
-        );
-    }
-
-    #[test]
-    pub fn productions_iter() {
-        let p_check = vec![
-            Production {
-                lhs: vec![symbol("S")],
-                rhs: vec![symbol("A"), symbol("B")],
-            },
-            Production {
-                lhs: vec![symbol("A")],
-                rhs: vec![symbol("a")],
-            },
-            Production {
-                lhs: vec![symbol("B")],
-                rhs: vec![symbol("a")],
-            },
-            Production {
-                lhs: vec![symbol("B")],
-                rhs: vec![symbol("b")],
-            },
-        ];
-
-        assert_eq!(
-            super::productions_iter(vec!["S -> A B", "A -> a", "B -> a | b"]),
             p_check,
             "Created production rules are not those expected"
         );
