@@ -1,3 +1,10 @@
+//! Module for handling all symbols related operations.
+//! 
+//! It defines a `Symbol` type which can be used to conveniently work with symbols in grammars and productions
+//! and provide abstraction over normal collection of chars.
+//! 
+//! It can be easily constructed from `&str`s.
+
 use crate::tokenizer;
 use std::error::Error;
 use std::fmt;
@@ -7,7 +14,10 @@ const EMPTY_SYMBOL: char = 'ε';
 
 #[derive(Debug,PartialEq)]
 pub enum SymbolError {
+    /// Error resulting from the attempt to create a Symbol from an empty collection of chars.
     EmptySymbol,
+    /// Error resulting from the the attempt to create a Symbol from an invalid collection of chars.
+    /// It also provides the `String` used to attempt the Symbol creation, which generated the error.
     InvalidSymbol(String),
 }
 
@@ -24,6 +34,25 @@ impl fmt::Display for SymbolError {
 
 impl Error for SymbolError {}
 
+/// The main type of this module. It provides abstraction over symbols.
+/// Great to work with correct dataset when dealing with grammars and productions, or similar.
+/// 
+/// A Symbol can be made of every ascii-graphic chars,
+/// like the one described in [rust documentation](https://doc.rust-lang.org/std/primitive.char.html#method.is_ascii_graphic)
+/// for chars `ascii_graphic` method, which accept chars going from U+0021 '!' ..= U+007E '~', including 'ε', the "empty word" symbol.
+/// 
+/// Symbols can be logically divided in 2 major categories, defined as follow:
+/// - non terminals, which start with an uppercase letter (A-Z)
+/// - terminals, which start with everything else
+/// 
+/// Checking if a symbol is terminal or non terminal can be done using the according boolean methods you can find below.
+/// 
+/// A symbol can be created easily from strings, following these rules:
+/// - string can contain any number of whitespace
+/// - string has to contain at least one valid char (see above)
+/// - string can't contain anything else
+/// 
+/// It also implements the `IntoIterator` to iterate over the collection of chars which make up the Symbol.
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Symbol {
     string: String,
@@ -45,6 +74,21 @@ impl<'a> IntoIterator for &'a Symbol {
 }
 
 impl Symbol {
+
+    /// Creates a new Symbol based on the chars in the input.
+    /// 
+    /// # Errors
+    /// It can return an error if the input is empty or contains invalid chars.
+    /// 
+    /// ## Examples
+    /// ```rust
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// // create a new symbol based from the string "mysymbol"
+    /// let symbol = Symbol::new("mysymbol");
+    /// 
+    /// assert!(symbol.is_ok());
+    /// ```
     pub fn new(string: &str) -> Result<Symbol, SymbolError> {
         if string.is_empty() {
             return Err(SymbolError::EmptySymbol);
@@ -61,18 +105,94 @@ impl Symbol {
         Ok(Symbol { string: s })
     }
 
+    /// Return the `&str` representing this symbol chars.
+    /// 
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// // create a new symbol based from the string "mysymbol"
+    /// let symbol = Symbol::new("mysymbol")?;
+    /// 
+    /// assert_eq!(symbol.as_str(), "mysymbol");
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn as_str(&self) -> &str {
         self.string.as_str()
     }
 
+    /// Return the `String` representing this symbol chars.
+    /// 
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// // create a new symbol based from the string "mysymbol"
+    /// let symbol = Symbol::new("mysymbol")?;
+    /// 
+    /// assert_eq!(symbol.to_string(), String::from("mysymbol"));
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn to_string(&self) -> String {
         self.string.clone()
     }
 
+    /// Check if symbol is terminal.
+    /// You can expect the call to `is_non_terminal` to return an opposite result.
+    /// 
+    /// `true` if symbol is terminal, `false` otherwise
+    /// 
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// // create a new symbol based from the string "mysymbol"
+    /// let symbol = Symbol::new("mysymbol").unwrap();
+    /// 
+    /// assert!(symbol.is_terminal());
+    /// assert!(!symbol.is_non_terminal());
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn is_terminal(&self) -> bool {
         !self.is_non_terminal()
     }
 
+    /// Check if symbol is non terminal.
+    /// You can expect the call to `is_terminal` to return an opposite result.
+    /// 
+    /// `true` if symbol is non terminal, `false` otherwise
+    /// 
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// // create a new symbol based from the string "Mysymbol"
+    /// let symbol = Symbol::new("Mysymbol")?;
+    /// 
+    /// assert!(symbol.is_non_terminal());
+    /// assert!(!symbol.is_terminal());
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn is_non_terminal(&self) -> bool {
         match self.string.chars().next() {
             Some(c) => c.is_ascii_uppercase(),
@@ -80,19 +200,84 @@ impl Symbol {
         }
     }
 
+    /// Check if char is a valid symbol char.
+    /// `true` if char is a valid symbol char, `false` otherwise
+    /// 
+    /// # Examples
+    /// ```rust
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// assert!(Symbol::is_valid_char(&'c'));
+    /// assert!(!Symbol::is_valid_char(&'\n'));
+    /// ```
     pub fn is_valid_char(c: &char) -> bool {
         c.is_ascii_graphic() || c == &EMPTY_SYMBOL
     }
 
+    /// Create a collection of symbols from a raw input string.
+    ///
+    /// # Errors
+    /// Can return an error if the raw string can't be parsed to obtain actual symbols both due to wrong
+    /// string formatting (symbols should be contiguous chars separated between them by every kind of whitespace) and due to
+    /// symbol creation error (invalid char, empty symbol, etc.).
+    /// 
+    /// In the case an empty or whitespace only string is given, it just returns an empty collection of symbols.
+    /// 
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// let result = Symbol::symbols_from_string("A B C")?;
+    /// 
+    /// assert_eq!(result.len(), 3);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn symbols_from_string(string: &str) -> Result<Vec<Symbol>, SymbolError> {
         tokenizer::symbols_from_string(string).iter().map(|s| Symbol::new(s)).fold_results(Vec::new(), |mut acc, s| { acc.push(s); acc})
     }
 }
 
+/// Convenience function for creating a symbol from a raw string.
+/// 
+/// It returns the symbol directly,
+/// as opposed to the `Result` returned from the Symbol constructor.
+/// 
+/// # Panics
+/// Panics if some error occurred during symbol creation (see Symbol [consructor](struct.Symbol.html#method.new) for further details)
+/// 
+/// # Examples
+/// ```rust
+/// use liblet::symbol::symbol;
+/// 
+/// let symbol = symbol("A");
+/// 
+/// assert_eq!(symbol.as_str(), "A");
+/// ```
 pub fn symbol(string: &str) -> Symbol {
     Symbol::new(string).unwrap()
 }
 
+/// Convenience function for creating a collection of symbols from a raw string.
+/// 
+/// It returns the symbols directly,
+/// as opposed to the `Result` returned from the Symbol `symbols_from_string` method.
+///
+/// # Panics
+/// Panics if some error occurred during symbol creation or string parsing (see Symbol [symbols_from_string](struct.Symbol.html#method.symbols_from_string) method for further details)
+/// 
+/// # Examples
+/// ```rust
+/// use liblet::symbol::symbols;
+/// 
+/// let result = symbols("A B C");
+/// 
+/// assert_eq!(result.len(), 3);
+/// ```
 pub fn symbols(string: &str) -> Vec<Symbol> {
     Symbol::symbols_from_string(string).unwrap()
 }
