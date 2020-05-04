@@ -145,7 +145,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert_eq!(d.sentential_form(), vec![symbol("A")])
+    /// assert_eq!(d.sentential_form(), vec![symbol("A")]);
     /// ```
     pub fn new(g: Grammar) -> Derivation {
         let from = vec![g.s()];
@@ -167,7 +167,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new_from(g, vec![symbol("Custom")]);
     ///
-    /// assert_eq!(d.sentential_form(), vec![symbol("Custom")])
+    /// assert_eq!(d.sentential_form(), vec![symbol("Custom")]);
     /// ```
     pub fn new_from<I>(g: Grammar, sentential_form: I) -> Derivation
     where
@@ -192,7 +192,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert!(d.steps().is_empty())
+    /// assert!(d.steps().is_empty());
     /// ```
     pub fn steps(&self) -> Vec<DerivationStep> {
         self.steps.clone()
@@ -212,7 +212,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert_eq!(d.sentential_form(), vec![symbol("A")])
+    /// assert_eq!(d.sentential_form(), vec![symbol("A")]);
     /// ```
     pub fn sentential_form(&self) -> Vec<Symbol> {
         if let Some(last) = self.sentential_forms.last() {
@@ -229,7 +229,7 @@ impl Derivation {
     ///
     /// # Errors
     /// For more info about the errors returned, check the [DerivationError](enum.DerivationError.html) documentation.
-    /// - [WrongProductionIndex](enum.DerivationError.html#variant.WrongProductionIndex) error if the production index target a nonexistent grammar production
+    /// - [WrongProductionIndex](enum.DerivationError.html#variant.WrongProductionIndex) error if the production index targets a nonexistent grammar production
     /// - [WrongIndex](enum.DerivationError.html#variant.WrongIndex) error if the index target an impossible index of the current derivation sentential form
     /// - [ImpossibleStep](enum.DerivationError.html#variant.ImpossibleStep) error if the step to be applied can't be applied to the current derivation sentential form
     /// (but the steps indexes were correct)
@@ -243,7 +243,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert_eq!(d.sentential_form(), vec![symbol("A")])
+    /// assert_eq!(d.sentential_form(), vec![symbol("A")]);
     /// ```
     pub fn step(mut self, p_index: usize, index: usize) -> Result<Derivation, DerivationError> {
         let step = DerivationStep { p_index, index };
@@ -299,7 +299,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert_eq!(d.sentential_form(), vec![symbol("A")])
+    /// assert_eq!(d.sentential_form(), vec![symbol("A")]);
     /// ```
     pub fn step_iter<I>(self, steps: I) -> Result<Derivation, DerivationError>
     where
@@ -331,7 +331,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert!(d.leftmost(0).is_ok()) // applied "A -> a" on "A"
+    /// assert!(d.leftmost(0).is_ok()); // applied "A -> a" on "A"
     /// ```
     pub fn leftmost(self, p_index: usize) -> Result<Derivation, DerivationError> {
         self.step(p_index, 0)
@@ -358,7 +358,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert!(d.leftmost_n(0).is_ok()) // applied "A -> a" on "A"
+    /// assert!(d.leftmost_n(0).is_ok()); // applied "A -> a" on "A"
     /// ```
     pub fn leftmost_n(self, p_index: usize) -> Result<Derivation, DerivationError> {
         let sf = self.sentential_form();
@@ -371,7 +371,7 @@ impl Derivation {
         Err(DerivationError::NoNSymbol(sf))
     }
 
-    /// Repeated [leftmost](#method.leftmost) for each production index in a collection of productions passed as input
+    /// Repeated [leftmost](#method.leftmost) for each production index in an ordered collection of productions passed as input
     pub fn leftmost_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
@@ -384,7 +384,7 @@ impl Derivation {
         Ok(d)
     }
 
-    /// Repeated [leftmost_n](#method.leftmost_n) for each production index in a collection of productions passed as input
+    /// Repeated [leftmost_n](#method.leftmost_n) for each production index in an ordered collection of productions passed as input
     pub fn leftmost_n_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
@@ -415,7 +415,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert!(d.rightmost(0).is_ok()) // applied "A -> a" on "A"
+    /// assert!(d.rightmost(0).is_ok()); // applied "A -> a" on "A"
     /// ```
     pub fn rightmost(self, p_index: usize) -> Result<Derivation, DerivationError> {
         let sf = self.sentential_form();
@@ -443,7 +443,7 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert!(d.rightmost_n(0).is_ok()) // applied "A -> a" on "A"
+    /// assert!(d.rightmost_n(0).is_ok()); // applied "A -> a" on "A"
     /// ```
     pub fn rightmost_n(self, p_index: usize) -> Result<Derivation, DerivationError> {
         let sf = self.sentential_form();
@@ -458,7 +458,7 @@ impl Derivation {
         self.step(p_index, index)
     }
 
-    /// Repeated [rightmost](#method.rightmost) for each production index in a collection of productions passed as input
+    /// Repeated [rightmost](#method.rightmost) for each production index in an ordered collection of productions passed as input
     pub fn rightmost_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
@@ -471,7 +471,7 @@ impl Derivation {
         Ok(d)
     }
 
-    /// Repeated [rightmost_n](#method.rightmost_n) for each production index in a collection of productions passed as input
+    /// Repeated [rightmost_n](#method.rightmost_n) for each production index in an ordered collection of productions passed as input
     pub fn rightmost_n_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
     where
         I: IntoIterator<Item = usize>,
@@ -484,10 +484,57 @@ impl Derivation {
         Ok(d)
     }
 
+    /// Check if a given step is appliable to the current sentential form.
+    ///
+    /// Return `true` if the given step is appliable, `false` otherwise.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use liblet::derivation::Derivation;
+    /// use liblet::grammar::grammar;
+    /// use liblet::symbol::symbol;
+    ///
+    /// let g = grammar("A -> a");
+    /// let d = Derivation::new(g);
+    ///
+    /// // check if step "A -> a" on "A" is appliable
+    /// assert!(d.is_possible_step(0,0));
+    /// ```
     pub fn is_possible_step(self, p_index: usize, index: usize) -> bool {
         self.clone().step(p_index, index).is_ok()
     }
 
+    /// Return a collection of steps, representing the possible steps from the current derivation state,
+    /// based on trying to derive using the production whose production index is given as argument
+    /// with each possible sentential form symbol index.
+    ///
+    /// Can return an empty collection if no steps are possible.
+    ///
+    /// # Errors
+    /// Return a [WrongProductionIndex](enum.DerivationError.html#variant.WrongProductionIndex) error if the production
+    /// index targets a nonexistent grammar production
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::derivation::Derivation;
+    /// use liblet::grammar::grammar;
+    /// use liblet::symbol::symbol;
+    ///
+    /// let g = grammar("A -> a");
+    /// let d = Derivation::new(g);
+    ///
+    /// // get all possible steps for applying "A -> a"
+    /// // on the current sentential form (which is only 1),
+    /// // the step (0,0)
+    /// let possible_steps = d.possible_steps_by_prod(0)?;
+    /// assert_eq!(possible_steps.len(), 1);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn possible_steps_by_prod(
         self,
         p_index: usize,
@@ -514,6 +561,37 @@ impl Derivation {
         Ok(steps)
     }
 
+    /// Return a collection of steps, representing the possible steps from the current derivation state,
+    /// based on trying to derive using the sentential form symbol index given as argument
+    /// with each possible production of the grammar.
+    ///
+    /// Can return an empty collection if no steps are possible.
+    ///
+    /// # Errors
+    /// Return a [WrongIndex](enum.DerivationError.html#variant.WrongIndex) error if the sentential form symbol
+    /// index is not in range of the sentential form symbol indexes.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::derivation::Derivation;
+    /// use liblet::grammar::grammar;
+    /// use liblet::symbol::symbol;
+    ///
+    /// let g = grammar("A -> a");
+    /// let d = Derivation::new(g);
+    ///
+    /// // get all possible steps starting from the 0°
+    /// // symbol of the sentential form ("A"), which is
+    /// // only 1, the step (0,0)
+    /// let possible_steps = d.possible_steps_by_index(0)?;
+    /// assert_eq!(possible_steps.len(), 1);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn possible_steps_by_index(
         self,
         index: usize,
@@ -540,10 +618,36 @@ impl Derivation {
     }
 }
 
+/// Convenience function for creating a derivation from a grammar.
+///
+/// # Examples
+/// ```rust
+/// use liblet::derivation::derivation;
+/// use liblet::grammar::grammar;
+/// use liblet::symbol::symbol;
+///
+/// let g = grammar("A -> a");
+/// let d = derivation(g);
+///
+/// assert_eq!(d.sentential_form(), vec![symbol("A")]);
+/// ```
 pub fn derivation(g: Grammar) -> Derivation {
     Derivation::new(g)
 }
 
+/// Convenience function for creating a step from a production index and a
+/// sentential form symbol index.
+///
+/// # Examples
+/// ```rust
+/// use liblet::derivation::step;
+/// use liblet::symbol::symbol;
+///
+/// let s = step(0,0);
+///
+/// assert_eq!(s.p_index, 0);
+/// assert_eq!(s.index, 0);
+/// ```
 pub fn step(p_index: usize, index: usize) -> DerivationStep {
     DerivationStep {
         p_index: p_index,
