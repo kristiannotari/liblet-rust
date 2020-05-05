@@ -437,8 +437,7 @@ mod tests {
         );
         assert!(
             !Symbol::is_valid_char(&EPSILON),
-            "Empty word {} should not be flagged as valid",
-            EPSILON
+            format!("Empty word {} should not be flagged as valid", EPSILON)
         );
     }
 
@@ -464,8 +463,7 @@ mod tests {
         );
         assert!(
             Symbol::is_valid_symbol(&EPSILON.to_string()),
-            "Empty word {} should be flagged as valid",
-            EPSILON
+            format!("Empty word {} should be flagged as valid", EPSILON)
         );
     }
 
