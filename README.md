@@ -1,6 +1,6 @@
 # liblet-rust
 
-`v0.2.0`
+`v0.1.0`
 
 [![Build Status](https://travis-ci.org/kristiannotari/liblet-rust.png?branch=master)](https://travis-ci.org/kristiannotari/liblet-rust)
 [![codecov](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master/graph/badge.svg)](https://codecov.io/gh/kristiannotari/liblet-rust)
@@ -21,8 +21,6 @@ A generic and _possibly_ updated roadmap/to-do list is available in this repo pr
 If you want to contribute or correct any errors, please do so opening a issues or creating pull requests.
 
 ## Ported features
-
-`v0.1.0`
 
 More info available at the docs (*coming soon*).
 
