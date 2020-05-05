@@ -105,11 +105,7 @@ mod tests {
 
         let result = super::productions_from_string("S -> A B\nA -> a | B\nB -> b");
 
-        assert!(
-            result.is_ok(),
-            "Error tokenizing productions from string: {}",
-            result.unwrap_err()
-        );
+        assert!(result.is_ok(), "Error tokenizing productions from string");
         let p = result.unwrap();
         assert_eq!(p.len(), p_check.len());
         for (i, p) in p.iter().enumerate() {
@@ -136,14 +132,12 @@ mod tests {
         assert_eq!(
             e,
             TokenizerError::ProductionNoLhs,
-            "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-            TokenizerError::ProductionNoLhs,
-            e
+            "Productions from test input should returned the wrong error"
         );
     }
 
     #[test]
-    fn productions_from_string_no_lhs_() {
+    fn productions_from_string_no_lhs_sep() {
         let result = super::productions_from_string("->");
 
         assert!(
@@ -154,9 +148,7 @@ mod tests {
         assert_eq!(
             e,
             TokenizerError::ProductionNoLhs,
-            "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-            TokenizerError::ProductionNoLhs,
-            e
+            "Productions from test input should returned the wrong error"
         );
     }
 
@@ -173,9 +165,7 @@ mod tests {
         assert_eq!(
             e,
             TokenizerError::ProductionNoRhs(lhs.to_string()),
-            "Productions from  should return Err \"{}\" but returned Err \"{}\" instead",
-            TokenizerError::ProductionNoRhs(lhs.to_string()),
-            e
+            "Productions from test input should returned the wrong error"
         );
     }
 
@@ -192,9 +182,7 @@ mod tests {
         assert_eq!(
             e,
             TokenizerError::ProductionNoSeparator(lhs.to_string()),
-            "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-            TokenizerError::ProductionNoSeparator(lhs.to_string()),
-            e
+            "Productions from test input should returned the wrong error"
         );
     }
 
@@ -211,9 +199,7 @@ mod tests {
         assert_eq!(
             e,
             TokenizerError::ProductionNoRhs(lhs.to_string()),
-            "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-            TokenizerError::ProductionNoRhs(lhs.to_string()),
-            e
+            "Productions from test input should returned the wrong error"
         );
     }
 
@@ -230,9 +216,7 @@ mod tests {
         assert_eq!(
             e,
             TokenizerError::ProductionMultipleOneLine(expected_index),
-            "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-            TokenizerError::ProductionMultipleOneLine(expected_index),
-            e
+            "Productions from test input should returned the wrong error"
         );
     }
 
