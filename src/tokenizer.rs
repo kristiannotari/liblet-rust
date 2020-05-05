@@ -4,7 +4,7 @@ use std::fmt;
 const PRODUCTION_SEP: &str = "->";
 const PRODUCTION_OR: &str = "|";
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenizerError {
     ProductionNoLhs,
     ProductionNoRhs(String),

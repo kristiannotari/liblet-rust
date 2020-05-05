@@ -12,7 +12,7 @@ use std::fmt;
 
 const EPSILON: char = 'ε';
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SymbolError {
     /// Error resulting from the attempt to create a Symbol from an empty collection of chars.
     EmptySymbol,
@@ -437,7 +437,7 @@ mod tests {
         );
         assert!(
             !Symbol::is_valid_char(&EPSILON),
-            format!("Empty word {} should not be flagged as valid", EPSILON)
+            "Empty word char should not be flagged as valid"
         );
     }
 
@@ -463,7 +463,7 @@ mod tests {
         );
         assert!(
             Symbol::is_valid_symbol(&EPSILON.to_string()),
-            format!("Empty word {} should be flagged as valid", EPSILON)
+            "Empty word char should be flagged as valid"
         );
     }
 
