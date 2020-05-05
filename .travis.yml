@@ -8,3 +8,11 @@ jobs:
     - rust: nightly
   fast_finish: true
 cache: cargo
+before_cache:
+  - cargo prune
+  - |
+    RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin -f
+after_success: |
+  # Get coverage report and upload it for codecov.io.
+  cargo tarpaulin --out Xml
+  bash <(curl -s https://codecov.io/bash)
