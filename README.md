@@ -24,18 +24,15 @@ If you want to contribute or correct any errors, please do so opening a issues o
 
 More info available at the docs (*coming soon*).
 
-All implementations use a custom type called *Symbol* for representing symbols in a structured way. It also comes with some handy functions to help working on grammar symbols.
-
 > Following the official liblet [documentation](https://liblet.readthedocs.io/en/v1.1.0-alpha/api.html#liblet.grammar.Grammar.restrict_to).
 
-### Production
-
-- basic Production implementation, with left and right hand sides
-- `from_string` function on a production
-- `such_that` function on a production for production filters (uses ProductionPredicate)
-
-### Grammar
-
-- basic Grammar implementation, with non terminal and terminal symbols, production rules of the type *Production* and the start symbol
-- `alternatives` function on a grammar
-- `restrict_to` function on a grammar
+- [x] symbol (new)
+- [x] production
+- [ ] item (not planned)
+- [x] grammar
+- [x] derivation
+- [ ] transition
+- [ ] automaton
+- [ ] antlr support (not planned)
+- [ ] rich display (not planned yet)
+- [ ] utilities (not planned yet)
