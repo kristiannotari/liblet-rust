@@ -1,4 +1,11 @@
 language: rust
+sudo: required # required for some configurations
+# tarpaulin has only been tested on bionic and trusty other distros may have issues
+dist: bionic
+addons:
+    apt:
+        packages:
+            - libssl-dev
 rust:
   - stable
   - beta
@@ -8,11 +15,13 @@ jobs:
     - rust: nightly
   fast_finish: true
 cache: cargo
-before_cache:
-  - cargo prune
-  - |
-    RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin -f
+before_script: |
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    cargo install cargo-tarpaulin
+  fi
 after_success: |
-  # Get coverage report and upload it for codecov.io.
-  cargo tarpaulin --out Xml
-  bash <(curl -s https://codecov.io/bash)
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    # Get coverage report and upload it for codecov.io.
+    cargo tarpaulin --out Xml
+    bash <(curl -s https://codecov.io/bash)
+  fi

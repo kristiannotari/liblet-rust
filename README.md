@@ -1,5 +1,7 @@
 # liblet-rust
 
+`v0.2.0`
+
 [![Build Status](https://travis-ci.org/kristiannotari/liblet-rust.png?branch=master)](https://travis-ci.org/kristiannotari/liblet-rust)
 [![codecov](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master/graph/badge.svg)](https://codecov.io/gh/kristiannotari/liblet-rust)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
