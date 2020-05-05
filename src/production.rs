@@ -27,8 +27,9 @@ pub enum ProductionError {
     /// To be expected when creating productions from raw string inputs.
     SymbolError(SymbolError),
     /// Error returned for trying to create a Production with a bad formatted raw input string.
-    /// Properly formatted productions as strings are described in the ???
-    TokenizerError(TokenizerError),
+    /// Properly formatted productions as strings are described in the
+    /// [Production](struct.Production.html) documentation.
+    FormatError(TokenizerError),
 }
 
 impl fmt::Display for ProductionError {
@@ -39,9 +40,11 @@ impl fmt::Display for ProductionError {
             ProductionError::SymbolError(e) => {
                 write!(f, "ProductionError: symbol error encountered = {}", e)
             }
-            ProductionError::TokenizerError(e) => {
-                write!(f, "ProductionError: tokenizer error encountered = {}", e)
-            }
+            ProductionError::FormatError(e) => write!(
+                f,
+                "ProductionError: bad formatted string encountered, error = {}",
+                e
+            ),
         }
     }
 }
@@ -50,7 +53,7 @@ impl Error for ProductionError {}
 
 impl std::convert::From<TokenizerError> for ProductionError {
     fn from(e: TokenizerError) -> Self {
-        ProductionError::TokenizerError(e)
+        ProductionError::FormatError(e)
     }
 }
 
@@ -470,9 +473,9 @@ mod tests {
         match Production::from_string("S ->\n -> a | B\nB -> b") {
             Ok(_) => panic!("production from string should return error"),
             Err(e) => match e {
-                ProductionError::TokenizerError(_) => (),
+                ProductionError::FormatError(_) => (),
                 e => panic!(
-                    "Creation of productions from test input should return a TokenizerError but returned Err \"{}\" instead",
+                    "Creation of productions from test input should return a FormatError but returned Err \"{}\" instead",
                     e
                 ),
             }
