@@ -64,7 +64,7 @@ impl fmt::Display for DerivationError {
             ),
             DerivationError::NoNSymbol(sf) => write!(
                 f,
-                "Impossible leftmost_n step: can't find a non terminal symbol to start the derivation from, within the sentential form \"{:?}\"",
+                "Impossible step: can't find a non terminal symbol to start the derivation from, within the sentential form \"{:?}\"",
                 sf
             ),
         }
@@ -316,30 +316,6 @@ impl Derivation {
     /// Apply a step on the leftmost symbol of the current sentential form, using the production
     /// specified as input with the production index.
     ///
-    /// It works just like the [step](#method.step) method, using 0 as the index of the sentential
-    /// form symbol to derive from.
-    ///
-    /// # Errors
-    /// Return an error according to the [step](#method.step) method.
-    ///
-    /// # Examples
-    /// ```rust
-    /// use liblet::derivation::Derivation;
-    /// use liblet::grammar::grammar;
-    /// use liblet::symbol::symbol;
-    ///
-    /// let g = grammar("A -> a");
-    /// let d = Derivation::new(g);
-    ///
-    /// assert!(d.leftmost(0).is_ok()); // applied "A -> a" on "A"
-    /// ```
-    pub fn leftmost(self, p_index: usize) -> Result<Derivation, DerivationError> {
-        self.step(p_index, 0)
-    }
-
-    /// Apply a step on the leftmost symbol of the current sentential form, using the production
-    /// specified as input with the production index.
-    ///
     /// It works just like the [step](#method.step) method, using the index of
     /// the first non terminal symbol within the current sentential form as the sentential form symbol index.
     ///
@@ -358,9 +334,9 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert!(d.leftmost_n(0).is_ok()); // applied "A -> a" on "A"
+    /// assert!(d.leftmost(0).is_ok()); // applied "A -> a" on "A"
     /// ```
-    pub fn leftmost_n(self, p_index: usize) -> Result<Derivation, DerivationError> {
+    pub fn leftmost(self, p_index: usize) -> Result<Derivation, DerivationError> {
         let sf = self.sentential_form();
         for (index, symbol) in sf.iter().enumerate() {
             if symbol.is_non_terminal() {
@@ -384,44 +360,6 @@ impl Derivation {
         Ok(d)
     }
 
-    /// Repeated [leftmost_n](#method.leftmost_n) for each production index in an ordered collection of productions passed as input
-    pub fn leftmost_n_from_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
-    where
-        I: IntoIterator<Item = usize>,
-    {
-        let mut d = self;
-        for p_index in p_indexes {
-            d = d.leftmost_n(p_index)?;
-        }
-
-        Ok(d)
-    }
-
-    /// Apply a step on the rightmost symbol of the current sentential form, using the production
-    /// specified as input with the production index.
-    ///
-    /// It works just like the [step](#method.step) method, using as the index of the sentential
-    /// form symbol to derive from the index of the last symbol of the sentential form.
-    ///
-    /// # Errors
-    /// Return an error according to the [step](#method.step) method.
-    ///
-    /// # Examples
-    /// ```rust
-    /// use liblet::derivation::Derivation;
-    /// use liblet::grammar::grammar;
-    /// use liblet::symbol::symbol;
-    ///
-    /// let g = grammar("A -> a");
-    /// let d = Derivation::new(g);
-    ///
-    /// assert!(d.rightmost(0).is_ok()); // applied "A -> a" on "A"
-    /// ```
-    pub fn rightmost(self, p_index: usize) -> Result<Derivation, DerivationError> {
-        let sf = self.sentential_form();
-        self.step(p_index, std::cmp::max(0, sf.len() - 1))
-    }
-
     /// Apply a step on the rightmost symbol of the current sentential form, using the production
     /// specified as input with the production index.
     ///
@@ -443,9 +381,9 @@ impl Derivation {
     /// let g = grammar("A -> a");
     /// let d = Derivation::new(g);
     ///
-    /// assert!(d.rightmost_n(0).is_ok()); // applied "A -> a" on "A"
+    /// assert!(d.rightmost(0).is_ok()); // applied "A -> a" on "A"
     /// ```
-    pub fn rightmost_n(self, p_index: usize) -> Result<Derivation, DerivationError> {
+    pub fn rightmost(self, p_index: usize) -> Result<Derivation, DerivationError> {
         let sf = self.sentential_form();
         let len = sf.len();
         for (index, symbol) in sf.iter().rev().enumerate() {
@@ -454,8 +392,7 @@ impl Derivation {
             }
         }
 
-        let index = std::cmp::max(0, self.sentential_form().len() - 1);
-        self.step(p_index, index)
+        Err(DerivationError::NoNSymbol(sf))
     }
 
     /// Repeated [rightmost](#method.rightmost) for each production index in an ordered collection of productions passed as input
@@ -466,19 +403,6 @@ impl Derivation {
         let mut d = self;
         for p_index in p_indexes {
             d = d.rightmost(p_index)?;
-        }
-
-        Ok(d)
-    }
-
-    /// Repeated [rightmost_n](#method.rightmost_n) for each production index in an ordered collection of productions passed as input
-    pub fn rightmost_n_from_iter<I>(self, p_indexes: I) -> Result<Derivation, DerivationError>
-    where
-        I: IntoIterator<Item = usize>,
-    {
-        let mut d = self;
-        for p_index in p_indexes {
-            d = d.rightmost_n(p_index)?;
         }
 
         Ok(d)
@@ -501,7 +425,9 @@ impl Derivation {
     /// assert!(d.is_possible_step(0,0));
     /// ```
     pub fn is_possible_step(self, p_index: usize, index: usize) -> bool {
-        self.clone().step(p_index, index).is_ok()
+        Derivation::new_from(self.g.clone(), self.sentential_form())
+            .step(p_index, index)
+            .is_ok()
     }
 
     /// Return a collection of steps, representing the possible steps from the current derivation state,
