@@ -10,7 +10,7 @@ use std::error::Error;
 use std::fmt;
 use itertools::Itertools;
 
-const EMPTY_SYMBOL: char = 'ε';
+const EPSILON: char = 'ε';
 
 #[derive(Debug,PartialEq)]
 pub enum SymbolError {
@@ -96,9 +96,7 @@ impl Symbol {
 
         let s = string.to_string();
 
-        if s
-        .chars()
-        .any(|c| !Symbol::is_valid_char(&c)) {
+        if !Symbol::is_valid_symbol(string) {
             return Err(SymbolError::InvalidSymbol(s));
         }
 
@@ -211,7 +209,23 @@ impl Symbol {
     /// assert!(!Symbol::is_valid_char(&'\n'));
     /// ```
     pub fn is_valid_char(c: &char) -> bool {
-        c.is_ascii_graphic() || c == &EMPTY_SYMBOL
+        c.is_ascii_graphic()
+    }
+
+    /// Check if a string is a valid symbol.
+    /// `true` if the string is a valid symbol, `false` otherwise
+    /// 
+    /// # Examples
+    /// ```rust
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// assert!(Symbol::is_valid_symbol("A"));
+    /// assert!(!Symbol::is_valid_symbol("\n"));
+    /// ```
+    pub fn is_valid_symbol(string: &str) -> bool {
+        string == EPSILON.to_string() || string.chars().all(
+            |c| Symbol::is_valid_char(&c)
+        )
     }
 
     /// Create a collection of symbols from a raw input string.
@@ -239,6 +253,20 @@ impl Symbol {
     /// ```
     pub fn from_string(string: &str) -> Result<Vec<Symbol>, SymbolError> {
         tokenizer::symbols_from_string(string).iter().map(|s| Symbol::new(s)).fold_results(Vec::new(), |mut acc, s| { acc.push(s); acc})
+    }
+
+    /// Return a new symbol which represent the empty symbol 'ε'.
+    /// 
+    /// # Examples
+    /// ```rust
+    /// use liblet::symbol::Symbol;
+    /// 
+    /// let symbol = Symbol::empty();
+    /// 
+    /// assert_eq!(symbol.to_string(), "ε");
+    /// ```
+    pub fn empty() -> Symbol {
+        Symbol { string: EPSILON.to_string() }
     }
 }
 
@@ -366,13 +394,30 @@ mod tests {
         assert!(Symbol::is_valid_char(&valid_symbol), "Char {} should be flagged as valid", valid_symbol);
         assert!(!Symbol::is_valid_char(&invalid_symbol_1), "Char {} should not be flagged as valid", invalid_symbol_1);
         assert!(!Symbol::is_valid_char(&invalid_symbol_2), "Char {} should not be flagged as valid", invalid_symbol_2);
-        assert!(Symbol::is_valid_char(&EMPTY_SYMBOL), "Empty word {} should be flagged as valid", EMPTY_SYMBOL);
+        assert!(!Symbol::is_valid_char(&EPSILON), "Empty word {} should not be flagged as valid", EPSILON);
+    }
+
+    #[test]
+    fn is_valid_symbol() {
+        let valid_symbol = "A";
+        let invalid_symbol_1 = "Σ";
+        let invalid_symbol_2 = "\n";
+        assert!(Symbol::is_valid_symbol(&valid_symbol), "String {} should be flagged as valid", valid_symbol);
+        assert!(!Symbol::is_valid_symbol(&invalid_symbol_1), "String {} should not be flagged as valid", invalid_symbol_1);
+        assert!(!Symbol::is_valid_symbol(&invalid_symbol_2), "String {} should not be flagged as valid", invalid_symbol_2);
+        assert!(Symbol::is_valid_symbol(&EPSILON.to_string()), "Empty word {} should be flagged as valid", EPSILON);
     }
 
     #[test]
     fn from_string() {
         let symbols = vec![Symbol::new("A").unwrap(), Symbol::new("B").unwrap(), Symbol::new("a").unwrap()];
         assert_eq!(Symbol::from_string("A B a").unwrap(), symbols, "Parsed symbols");
+    }
+
+    #[test]
+    fn empty() {
+        let symbol = Symbol::empty();
+        assert_eq!(symbol.to_string(), EPSILON.to_string());
     }
 
     #[test]
