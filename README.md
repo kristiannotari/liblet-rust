@@ -1,6 +1,7 @@
 # liblet-rust
 
 [![Build Status](https://travis-ci.org/kristiannotari/liblet-rust.png?branch=master)](https://travis-ci.org/kristiannotari/liblet-rust)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
 
 Porting project for the [liblet library](https://github.com/let-unimi/liblet) of the University of Milan course "Linguaggi e Traduttori" (Languages and Translators) in Rust.
 
