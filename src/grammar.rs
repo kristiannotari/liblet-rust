@@ -1067,7 +1067,7 @@ mod tests {
     #[test]
     pub fn new_from_string_wrong_non_terminal_symbols() {
         let result =
-            Grammar::new_from_string(vec!["s", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
+            Grammar::new_from_string(vec!["\n", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
 
         assert!(
             result.is_err(),
