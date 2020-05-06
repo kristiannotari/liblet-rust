@@ -7,7 +7,7 @@
 ![GitHub](https://img.shields.io/github/license/kristiannotari/liblet-rust)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
 
-> coverage disclaimer: percentage of code coverage is not reliable as of now, due to some errors in the tools used.
+> coverage disclaimer: percentage of code coverage is not reliable as of now, due to some issues with the tool used (cargo tarpaulin). If you have any advices, feel free to contact me.
 
 Porting project for the [liblet library](https://github.com/let-unimi/liblet) of the University of Milan course "Linguaggi e Traduttori" (Languages and Translators) in Rust.
 
