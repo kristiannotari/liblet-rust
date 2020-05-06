@@ -56,7 +56,7 @@ impl fmt::Display for GrammarError {
             ),
             GrammarError::WrongStartSymbol(s) => write!(
                 f,
-                "GrammarError: start symbol should be a valid nont terminal symbol, received \"{}\" instead", s
+                "GrammarError: start symbol should be a valid non terminal symbol, received \"{}\" instead", s
             ),
             GrammarError::NoStartSymbol(cause) => {
                 write!(f, "GrammarError: grammar has no start symbol, cause: {}", cause.clone().unwrap_or("unspecified".to_string()))
@@ -704,6 +704,52 @@ mod tests {
     use super::*;
     use crate::production::production;
     use crate::symbol::symbol;
+    use crate::tokenizer::TokenizerError;
+    use std::fmt::Write;
+
+    // struct.Grammar
+
+    #[test]
+    pub fn n() {
+        let g = super::grammar("S -> A");
+
+        assert_eq!(
+            g.n(),
+            vec![symbol("S"), symbol("A")]
+                .into_iter()
+                .collect::<HashSet<Symbol>>(),
+            "Grammar returned non terminals are wrong"
+        );
+    }
+
+    #[test]
+    pub fn t() {
+        let g = super::grammar("S -> a");
+
+        assert_eq!(
+            g.t(),
+            vec![symbol("a")].into_iter().collect::<HashSet<Symbol>>(),
+            "Grammar returned terminals are wrong"
+        );
+    }
+
+    #[test]
+    pub fn p() {
+        let g = super::grammar("S -> A\nA -> a");
+
+        assert_eq!(
+            g.p(),
+            vec![production("S", "A"), production("A", "a")],
+            "Grammar returned productions are wrong"
+        );
+    }
+
+    #[test]
+    pub fn s() {
+        let g = super::grammar("S -> A");
+
+        assert_eq!(g.s(), symbol("S"), "Grammar returned start symbol is wrong");
+    }
 
     #[test]
     pub fn from_string() {
@@ -736,17 +782,59 @@ mod tests {
     }
 
     #[test]
-    pub fn from_string_error() {
-        match Grammar::from_string("S ->\n -> a | B\nB -> b") {
-            Ok(_) => panic!("grammar from string should return error"),
-            Err(e) => match e {
-                GrammarError::ProductionError(_) => (),
-                e => panic!(
-                    "Creation of grammar from test input should return a ProductionError but returned Err \"{}\" instead",
-                    e
-                ),
-            }
-        }
+    pub fn from_string_no_rhs() {
+        let result = Grammar::from_string("S ->\n -> a | B\nB -> b");
+
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::ProductionError(ProductionError::FormatError(
+                TokenizerError::ProductionNoRhs("S".to_string())
+            )),
+            "Creation of grammar from test input returned the wrong error",
+        );
+    }
+
+    #[test]
+    pub fn from_string_no_start_symbol_no_production() {
+        let result = Grammar::from_string("");
+
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::NoStartSymbol(Some("found no production rules".to_string())),
+            "Creation of grammar from test input returned the wrong error",
+        );
+    }
+
+    #[test]
+    pub fn from_string_no_lhs() {
+        let result = Grammar::from_string(" -> B");
+
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::ProductionError(ProductionError::FormatError(
+                TokenizerError::ProductionNoLhs
+            )),
+            "Creation of grammar from test input returned the wrong error",
+        );
+    }
+
+    #[test]
+    pub fn from_string_multiple_start_symbols() {
+        let result = Grammar::from_string("A B -> C");
+
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::MultipleStartSymbols(production("A B", "C")),
+            "Creation of grammar from test input returned the wrong error",
+        );
     }
 
     #[test]
@@ -803,18 +891,21 @@ mod tests {
 
     #[test]
     pub fn restrict_to_panic_start_symbol() {
-        match Grammar::from_string("S -> A\nA -> a | B\nB -> b")
+        let result = Grammar::from_string("S -> A\nA -> a | B\nB -> b")
             .unwrap()
-            .restrict_to(vec![symbol("A"), symbol("a")]) {
-                Ok(_) => panic!("restricting grammar should return error"),
-                Err(e) => match e {
-                    GrammarError::NoStartSymbol(_) => (),
-                    e => panic!(
-                        "Creation of grammar from test input should return a NoStartSymbol error but returned Err \"{}\" instead",
-                        e
-                    ),
-            }
-            }
+            .restrict_to(vec![symbol("A"), symbol("a")]);
+        assert!(
+            result.is_err(),
+            "Restricting grammar should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::NoStartSymbol(Some(
+                "restricting the grammar lead to a grammar without start symbol".to_string()
+            )),
+            "Restricting grammar returned the wrong error"
+        );
     }
 
     #[test]
@@ -850,6 +941,81 @@ mod tests {
     }
 
     #[test]
+    pub fn new_wrong_start_symbol() {
+        let s_check: Symbol = symbol("s");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
+        let result = Grammar::new(
+            n_check.clone(),
+            t_check.clone(),
+            p_check.clone(),
+            s_check.clone(),
+        );
+
+        assert!(
+            result.is_err(),
+            "Grammar creation with wrong start symbol should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::WrongStartSymbol(s_check.clone()),
+            "Grammar creation from string with wrong non terminal symbols returned a wrong error"
+        );
+    }
+
+    #[test]
+    pub fn new_wrong_non_terminals() {
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("s"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
+        let result = Grammar::new(
+            n_check.clone(),
+            t_check.clone(),
+            p_check.clone(),
+            s_check.clone(),
+        );
+
+        assert!(
+            result.is_err(),
+            "Grammar creation with wrong non terminal symbols should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::WrongNonTerminals,
+            "Grammar creation from string with wrong non terminal symbols returned a wrong error"
+        );
+    }
+
+    #[test]
+    pub fn new_wrong_terminals() {
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("S")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
+        let result = Grammar::new(
+            n_check.clone(),
+            t_check.clone(),
+            p_check.clone(),
+            s_check.clone(),
+        );
+
+        assert!(
+            result.is_err(),
+            "Grammar creation with wrong terminal symbols should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            GrammarError::WrongTerminals,
+            "Grammar creation from string with wrong non terminal symbols returned a wrong error"
+        );
+    }
+
+    #[test]
     pub fn new_from_string() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
@@ -877,58 +1043,58 @@ mod tests {
     }
 
     #[test]
-    pub fn grammar() {
-        let s_check: Symbol = symbol("S");
-        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A"), symbol("B")]
-            .into_iter()
-            .collect();
-        let t_check: HashSet<Symbol> = vec![symbol("a"), symbol("b")].into_iter().collect();
-        let p_check: Vec<Production> = vec![
-            production("S", "A B"),
-            production("A", "a"),
-            production("A", "B"),
-            production("B", "b"),
-        ];
+    pub fn new_from_string_wrong_start_symbol() {
+        let start_symbol = "\n";
+        let result = Grammar::new_from_string(
+            vec!["S", "A"],
+            vec!["a"],
+            vec!["S -> A\nA -> a"],
+            start_symbol,
+        );
 
-        let g = super::grammar("S -> A B\nA -> a | B\nB -> b");
-        assert_eq!(g.s, s_check, "Parsed start symbol is not the one expected");
-        assert_eq!(
-            g.n, n_check,
-            "Parsed non terminal symbols are not those expected"
+        assert!(
+            result.is_err(),
+            "Grammar creation from string with wrong start symbol should return an error"
         );
+        let e = result.unwrap_err();
         assert_eq!(
-            g.t, t_check,
-            "Parsed terminal symbols are not those expected"
-        );
-        assert_eq!(
-            g.p, p_check,
-            "Parsed production rules are not those expected"
+            e,
+            GrammarError::SymbolError(SymbolError::InvalidSymbol(start_symbol.to_string())),
+            "Grammar creation from string with wrong non terminal symbols returned a wrong error"
         );
     }
 
     #[test]
-    pub fn grammar_quadruple() {
-        let s_check: Symbol = symbol("S");
-        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
-        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
-        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
-        let g = super::grammar_quadruple(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
+    pub fn new_from_string_wrong_non_terminal_symbols() {
+        let result =
+            Grammar::new_from_string(vec!["\n", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
 
-        assert_eq!(
-            g.s, s_check,
-            "new grammar start symbol is not the one expected"
+        assert!(
+            result.is_err(),
+            "Grammar creation from string with wrong non terminal symbols should return an error"
         );
+        let e = result.unwrap_err();
         assert_eq!(
-            g.n, n_check,
-            "New grammar non terminal symbols are not those expected"
+            e,
+            GrammarError::WrongNonTerminals,
+            "Grammar creation from string with wrong non terminal symbols returned a wrong error"
         );
-        assert_eq!(
-            g.t, t_check,
-            "New grammar terminal symbols are not those expected"
+    }
+
+    #[test]
+    pub fn new_from_string_wrong_terminal_symbols() {
+        let result =
+            Grammar::new_from_string(vec!["S", "A"], vec!["A"], vec!["S -> A\nA -> a"], "S");
+
+        assert!(
+            result.is_err(),
+            "Grammar creation from string with wrong terminal symbols should return an error"
         );
+        let e = result.unwrap_err();
         assert_eq!(
-            g.p, p_check,
-            "New grammar production rules are not those expected"
+            e,
+            GrammarError::WrongTerminals,
+            "Grammar creation from string with wrong terminal symbols returned a wrong error"
         );
     }
 
@@ -1025,5 +1191,165 @@ mod tests {
             symbols_check,
             "Productives symbols from grammar are not those expected"
         );
+    }
+
+    // mod.grammar
+    #[test]
+    pub fn grammar() {
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A"), symbol("B")]
+            .into_iter()
+            .collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a"), symbol("b")].into_iter().collect();
+        let p_check: Vec<Production> = vec![
+            production("S", "A B"),
+            production("A", "a"),
+            production("A", "B"),
+            production("B", "b"),
+        ];
+
+        let g = super::grammar("S -> A B\nA -> a | B\nB -> b");
+        assert_eq!(g.s, s_check, "Parsed start symbol is not the one expected");
+        assert_eq!(
+            g.n, n_check,
+            "Parsed non terminal symbols are not those expected"
+        );
+        assert_eq!(
+            g.t, t_check,
+            "Parsed terminal symbols are not those expected"
+        );
+        assert_eq!(
+            g.p, p_check,
+            "Parsed production rules are not those expected"
+        );
+    }
+
+    #[test]
+    pub fn grammar_quadruple() {
+        let s_check: Symbol = symbol("S");
+        let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
+        let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
+        let p_check: Vec<Production> = vec![production("S", "A"), production("A", "a")];
+        let g = super::grammar_quadruple(vec!["S", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
+
+        assert_eq!(
+            g.s, s_check,
+            "new grammar start symbol is not the one expected"
+        );
+        assert_eq!(
+            g.n, n_check,
+            "New grammar non terminal symbols are not those expected"
+        );
+        assert_eq!(
+            g.t, t_check,
+            "New grammar terminal symbols are not those expected"
+        );
+        assert_eq!(
+            g.p, p_check,
+            "New grammar production rules are not those expected"
+        );
+    }
+
+    // enum.GrammarError
+
+    #[test]
+    fn grammar_error_display_wrong_non_terminals() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", GrammarError::WrongNonTerminals);
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            "GrammarError: non non terminal symbols as non terminal symbols for grammar"
+        )
+    }
+
+    #[test]
+    fn grammar_error_display_wrong_terminals() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", GrammarError::WrongTerminals);
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            "GrammarError: non terminal symbols as terminal symbols in grammar"
+        )
+    }
+
+    #[test]
+    fn grammar_error_display_wrong_start_symbol() {
+        let mut buf = String::new();
+        let symbol = symbol("a");
+
+        let result = write!(buf, "{}", GrammarError::WrongStartSymbol(symbol.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "GrammarError: start symbol should be a valid non terminal symbol, received \"{}\" instead", symbol
+            )
+        )
+    }
+
+    #[test]
+    fn grammar_error_display_no_start_symbol() {
+        let mut buf = String::new();
+        let cause = "cause";
+
+        let result = write!(
+            buf,
+            "{}",
+            GrammarError::NoStartSymbol(Some(cause.to_string()))
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "GrammarError: grammar has no start symbol, cause: {}",
+                cause.clone()
+            )
+        )
+    }
+
+    #[test]
+    fn grammar_error_display_multiple_start_symbols() {
+        let mut buf = String::new();
+        let p = production("A B", "C");
+
+        let result = write!(buf, "{}", GrammarError::MultipleStartSymbols(p.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "GrammarError: grammar has multiple start symbols in production {}",
+                p
+            )
+        )
+    }
+
+    #[test]
+    fn grammar_error_display_symbol_error() {
+        let mut buf = String::new();
+        let e = SymbolError::EmptySymbol;
+
+        let result = write!(buf, "{}", GrammarError::SymbolError(e.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!("GrammarError: symbol error encountered = {}", e)
+        )
+    }
+
+    #[test]
+    fn grammar_error_display_production_error() {
+        let mut buf = String::new();
+        let e = ProductionError::NoLhs;
+
+        let result = write!(buf, "{}", GrammarError::ProductionError(e.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!("GrammarError: production error encountered = {}", e)
+        )
     }
 }

@@ -4,10 +4,11 @@ use std::fmt;
 const PRODUCTION_SEP: &str = "->";
 const PRODUCTION_OR: &str = "|";
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenizerError {
     ProductionNoLhs,
     ProductionNoRhs(String),
+    ProductionNoSeparator(String),
     ProductionMultipleOneLine(usize),
 }
 
@@ -16,13 +17,18 @@ impl fmt::Display for TokenizerError {
         match self {
             TokenizerError::ProductionNoLhs => write!(
                 f,
-                "TokenizerError: Expected left hand side for production rules (form A {} B)",
+                "TokenizerError: Expected left hand side for production rule (form A {} B)",
                 PRODUCTION_SEP
             ),
             TokenizerError::ProductionNoRhs(lhs) => write!(
                 f,
                 "TokenizerError: Expected right hand side of production rule {} {} ...",
                 lhs, PRODUCTION_SEP
+            ),
+            TokenizerError::ProductionNoSeparator(production) => write!(
+                f,
+                "TokenizerError: Expected separator in production rule \"{}\"",
+                production
             ),
             TokenizerError::ProductionMultipleOneLine(index) => write!(
                 f,
@@ -40,16 +46,17 @@ pub fn productions_from_string(
 ) -> Result<Vec<(Vec<String>, Vec<String>)>, TokenizerError> {
     let mut p: Vec<(Vec<String>, Vec<String>)> = Vec::new();
 
-    for (i, rule) in string.trim().lines().enumerate() {
-        let mut sides = rule.split_terminator(PRODUCTION_SEP);
+    for (i, rule) in string.trim().lines().map(|s| s.trim()).enumerate() {
+        let index: usize = rule
+            .find(PRODUCTION_SEP)
+            .ok_or(TokenizerError::ProductionNoSeparator(rule.to_string()))?;
+        let mut sides = rule
+            .split(PRODUCTION_SEP)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty());
         match (sides.next(), sides.next(), sides.next()) {
             (Some(lhs), Some(rhs), None) => {
-                let lhs = lhs.trim();
-                if lhs.is_empty() {
-                    return Err(TokenizerError::ProductionNoLhs);
-                }
-                for rhs in rhs.split(PRODUCTION_OR) {
-                    let rhs = rhs.trim();
+                for rhs in rhs.split(PRODUCTION_OR).map(|s| s.trim()) {
                     if rhs.is_empty() {
                         return Err(TokenizerError::ProductionNoRhs(lhs.to_string()));
                     }
@@ -59,8 +66,12 @@ pub fn productions_from_string(
             (Some(_), Some(_), Some(_)) => {
                 return Err(TokenizerError::ProductionMultipleOneLine(i))
             }
-            (Some(lhs), None, _) => {
-                return Err(TokenizerError::ProductionNoRhs(lhs.trim().to_string()))
+            (Some(s), _, _) => {
+                if index == rule.len() - PRODUCTION_SEP.len() {
+                    return Err(TokenizerError::ProductionNoRhs(s.to_string()));
+                } else {
+                    return Err(TokenizerError::ProductionNoLhs);
+                }
             }
             (None, _, _) => return Err(TokenizerError::ProductionNoLhs),
         }
@@ -81,6 +92,9 @@ pub fn symbols_from_string(string: &str) -> Vec<String> {
 mod tests {
 
     use super::*;
+    use std::fmt::Write;
+
+    // mod.tokenizer
 
     #[test]
     fn productions_from_string() {
@@ -91,104 +105,121 @@ mod tests {
             (vec!["B"], vec!["b"]),
         ];
 
-        match super::productions_from_string("S -> A B\nA -> a | B\nB -> b") {
-            Ok(p) => {
-                assert_eq!(p.len(), p_check.len());
-                for (i, p) in p.iter().enumerate() {
-                    assert_eq!(
-                        p.0, p_check[i].0,
-                        "Tokenized production left side is not the one expected"
-                    );
-                    assert_eq!(
-                        p.1, p_check[i].1,
-                        "Tokenized production right side is not the one expected"
-                    );
-                }
-            }
-            Err(e) => panic!("Error tokenizing productions from string: {}", e),
+        let result = super::productions_from_string("S -> A B\nA -> a | B\nB -> b");
+
+        assert!(result.is_ok(), "Error tokenizing productions from string");
+        let p = result.unwrap();
+        assert_eq!(p.len(), p_check.len());
+        for (i, p) in p.iter().enumerate() {
+            assert_eq!(
+                p.0, p_check[i].0,
+                "Tokenized production left side is not the one expected"
+            );
+            assert_eq!(
+                p.1, p_check[i].1,
+                "Tokenized production right side is not the one expected"
+            );
         }
     }
 
     #[test]
     fn productions_from_string_no_lhs() {
-        match super::productions_from_string("-> B") {
-            Ok(a) => {println!("ret: {:?}", a); panic!("Productions from test input should return an Err result")},
-            Err(e) => match e {
-                TokenizerError::ProductionNoLhs => (),
-                e => panic!(
-                    "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    TokenizerError::ProductionNoLhs,
-                    e
-                ),
-            },
-        }
+        let result = super::productions_from_string("-> B");
+
+        assert!(
+            result.is_err(),
+            "Productions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::ProductionNoLhs,
+            "Productions from test input should returned the wrong error"
+        );
+    }
+
+    #[test]
+    fn productions_from_string_no_lhs_sep() {
+        let result = super::productions_from_string("->");
+
+        assert!(
+            result.is_err(),
+            "Productions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::ProductionNoLhs,
+            "Productions from test input should returned the wrong error"
+        );
     }
 
     #[test]
     fn productions_from_string_no_rhs() {
         let lhs = "A";
-        match super::productions_from_string(format!("{} -> ", lhs).as_str()) {
-            Ok(_) => panic!("Productions from test input should return an Err result"),
-            Err(e) => match e {
-                TokenizerError::ProductionNoRhs(_) => (),
-                e => panic!(
-                    "Productions from  should return Err \"{}\" but returned Err \"{}\" instead",
-                    TokenizerError::ProductionNoRhs(lhs.to_string()),
-                    e
-                ),
-            },
-        }
+        let result = super::productions_from_string(format!("{} -> ", lhs).as_str());
+
+        assert!(
+            result.is_err(),
+            "Productions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::ProductionNoRhs(lhs.to_string()),
+            "Productions from test input should returned the wrong error"
+        );
     }
 
     #[test]
     fn productions_from_string_no_production_sep() {
         let lhs = "abc test d";
-        match super::productions_from_string(lhs) {
-            Ok(_) => panic!("Productions from test input should return an Err result"),
-            Err(e) => match e {
-                TokenizerError::ProductionNoRhs(_) => (),
-                e => panic!(
-                    "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    TokenizerError::ProductionNoRhs(lhs.to_string()),
-                    e
-                ),
-            },
-        }
+        let result = super::productions_from_string(lhs);
+
+        assert!(
+            result.is_err(),
+            "Productions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::ProductionNoSeparator(lhs.to_string()),
+            "Productions from test input should returned the wrong error"
+        );
     }
 
     #[test]
     fn productions_from_string_no_rhs_or() {
         let lhs = "A";
-        match super::productions_from_string(format!("{} -> B | ", lhs).as_str()) {
-            Ok(g) => {
-                println!("{:?}", g);
-                panic!("Productions from test input should return an Err result")
-            },
-            Err(e) => match e {
-                TokenizerError::ProductionNoRhs(_) => (),
-                e => panic!(
-                    "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    TokenizerError::ProductionNoRhs(lhs.to_string()),
-                    e
-                ),
-            },
-        }
+        let result = super::productions_from_string(format!("{} -> B | ", lhs).as_str());
+
+        assert!(
+            result.is_err(),
+            "Productions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::ProductionNoRhs(lhs.to_string()),
+            "Productions from test input should returned the wrong error"
+        );
     }
 
     #[test]
     fn productions_from_string_multiple_one_line() {
         let expected_index = 0;
-        match super::productions_from_string("A -> B -> C") {
-            Ok(_) => panic!("Productions from test input should return an Err result"),
-            Err(e) => match e {
-                TokenizerError::ProductionMultipleOneLine(i) => assert_eq!(i, expected_index, "Production rule error should come from the {}° line not {}° line", expected_index, i),
-                e => panic!(
-                    "Productions from test input should return Err \"{}\" but returned Err \"{}\" instead",
-                    TokenizerError::ProductionMultipleOneLine(expected_index),
-                    e
-                ),
-            },
-        }
+        let result = super::productions_from_string("A -> B -> C");
+
+        assert!(
+            result.is_err(),
+            "Productions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::ProductionMultipleOneLine(expected_index),
+            "Productions from test input should returned the wrong error"
+        );
     }
 
     #[test]
@@ -210,5 +241,74 @@ mod tests {
     #[test]
     fn symbols_from_string_empty() {
         assert_eq!(super::symbols_from_string("").len(), 0);
+    }
+
+    // enum.TokenizerError
+
+    #[test]
+    fn tokenizer_error_display_production_no_lhs() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", TokenizerError::ProductionNoLhs);
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: Expected left hand side for production rule (form A {} B)",
+                PRODUCTION_SEP
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_production_no_rhs() {
+        let mut buf = String::new();
+        let string = String::from("test");
+
+        let result = write!(buf, "{}", TokenizerError::ProductionNoRhs(string.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: Expected right hand side of production rule {} {} ...",
+                string, PRODUCTION_SEP
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_production_no_separator() {
+        let mut buf = String::new();
+        let string = String::from("test");
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::ProductionNoSeparator(string.clone())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: Expected separator in production rule \"{}\"",
+                string
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_production_multiple_one_line() {
+        let mut buf = String::new();
+        let index = 0;
+
+        let result = write!(buf, "{}", TokenizerError::ProductionMultipleOneLine(index));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: Too many production rule on the same line on line {}",
+                index
+            )
+        )
     }
 }

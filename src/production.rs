@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ProductionError {
     /// Error returned for trying to create a Production with an empty / missing left hand side.
     /// Left hand side of productions should be an ordered collection of n >= 1 symbols.
@@ -439,6 +439,9 @@ mod tests {
 
     use super::*;
     use crate::symbol::symbol;
+    use std::fmt::Write;
+
+    // struct.Production
 
     #[test]
     pub fn from_string() {
@@ -470,16 +473,19 @@ mod tests {
 
     #[test]
     pub fn from_string_error() {
-        match Production::from_string("S ->\n -> a | B\nB -> b") {
-            Ok(_) => panic!("production from string should return error"),
-            Err(e) => match e {
-                ProductionError::FormatError(_) => (),
-                e => panic!(
-                    "Creation of productions from test input should return a FormatError but returned Err \"{}\" instead",
-                    e
-                ),
-            }
-        }
+        let error = TokenizerError::ProductionNoRhs("S".to_string());
+        let result = Production::from_string("S ->\n -> a | B\nB -> b");
+
+        assert!(
+            result.is_err(),
+            "Production from string on test input should return error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::FormatError(error),
+            "Creation of productions from test input returned the wrong error"
+        );
     }
 
     #[test]
@@ -509,6 +515,183 @@ mod tests {
             "Created production rules are not those expected"
         );
     }
+
+    #[test]
+    pub fn such_that() {
+        let filter = Production::such_that(ProductionPredicate::LhsEquals(vec![symbol("T")]));
+        let productions = Production::from_string("S -> A | B\nA -> a\nT -> t\nB -> B").unwrap();
+
+        let productions_iter = productions.clone();
+        let mut filtered = productions_iter.iter().filter(filter);
+
+        assert_eq!(
+            filtered.next(),
+            productions.get(3),
+            "Filtered productions on test input should return the T -> t production"
+        );
+        assert_eq!(
+            filtered.next(),
+            None,
+            "Filtered productions on test input should return no more productions"
+        );
+    }
+
+    #[test]
+    pub fn new() {
+        let p_check = Production {
+            lhs: vec![symbol("S")],
+            rhs: vec![symbol("A"), symbol("B")],
+        };
+
+        assert_eq!(
+            Production::new(p_check.lhs(), p_check.rhs()).unwrap(),
+            p_check,
+            "Created production rule is not the one expected"
+        );
+    }
+
+    #[test]
+    pub fn new_empty_side_lhs() {
+        let iter = vec![symbol("S")];
+
+        let result = Production::new(vec![], iter);
+        assert!(
+            result.is_err(),
+            "Creation of production rule should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::NoLhs,
+            "Creation of production rule returned the wrong error"
+        );
+    }
+
+    #[test]
+    pub fn new_empty_side_rhs() {
+        let iter = vec![symbol("S")];
+
+        let result = Production::new(iter, vec![]);
+        assert!(
+            result.is_err(),
+            "Creation of production rule should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::NoRhs,
+            "Creation of production rule returned the wrong error"
+        );
+    }
+
+    #[test]
+    pub fn new_from_string() {
+        let p_check = Production {
+            lhs: vec![symbol("S")],
+            rhs: vec![symbol("A"), symbol("B")],
+        };
+
+        assert_eq!(
+            Production::new_from_string(vec!["S"], vec!["A", "B"]).unwrap(),
+            p_check,
+            "Created production rule is not the one expected"
+        );
+    }
+
+    #[test]
+    pub fn new_from_string_error_lhs() {
+        let error = SymbolError::InvalidSymbol("\n".to_string());
+        let result = Production::new_from_string(vec!["\n"], vec!["A", "B"]);
+
+        assert!(
+            result.is_err(),
+            "Created production rule should return error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::SymbolError(error),
+            "Creation of production rule returned the wrong error"
+        );
+    }
+
+    #[test]
+    pub fn new_from_string_error_rhs() {
+        let error = SymbolError::InvalidSymbol("\n".to_string());
+        let result = Production::new_from_string(vec!["S"], vec!["\n"]);
+
+        assert!(
+            result.is_err(),
+            "Created production rule should return error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::SymbolError(error),
+            "Creation of production rule returned the wrong error"
+        );
+    }
+
+    #[test]
+    fn production_display() {
+        let mut buf = String::new();
+        let p = super::production("A", "B C");
+
+        let result = write!(buf, "{}", p);
+        assert!(result.is_ok());
+        assert_eq!(buf, "A -> B C")
+    }
+
+    // enum.ProductionError
+
+    #[test]
+    fn production_error_display_no_lhs() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", ProductionError::NoLhs);
+        assert!(result.is_ok());
+        assert_eq!(buf, "ProductionError: no lhs in production")
+    }
+
+    #[test]
+    fn production_error_display_no_rhs() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", ProductionError::NoRhs);
+        assert!(result.is_ok());
+        assert_eq!(buf, "ProductionError: no rhs in production")
+    }
+
+    #[test]
+    fn production_error_display_symbol_error() {
+        let mut buf = String::new();
+        let error = SymbolError::EmptySymbol;
+
+        let result = write!(buf, "{}", ProductionError::SymbolError(error.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!("ProductionError: symbol error encountered = {}", error)
+        )
+    }
+
+    #[test]
+    fn production_error_display_format_error() {
+        let mut buf = String::new();
+        let error = TokenizerError::ProductionNoLhs;
+
+        let result = write!(buf, "{}", ProductionError::FormatError(error.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "ProductionError: bad formatted string encountered, error = {}",
+                error
+            )
+        )
+    }
+
+    // enum.ProductionPredicate
 
     #[test]
     pub fn predicate_lhs_equals() {
@@ -590,53 +773,7 @@ mod tests {
         );
     }
 
-    #[test]
-    pub fn such_that() {
-        let filter = Production::such_that(ProductionPredicate::LhsEquals(vec![symbol("T")]));
-        let productions = Production::from_string("S -> A | B\nA -> a\nT -> t\nB -> B").unwrap();
-
-        let productions_iter = productions.clone();
-        let mut filtered = productions_iter.iter().filter(filter);
-
-        assert_eq!(
-            filtered.next(),
-            productions.get(3),
-            "Filtered productions on test input should return the T -> t production"
-        );
-        assert_eq!(
-            filtered.next(),
-            None,
-            "Filtered productions on test input should return no more productions"
-        );
-    }
-
-    #[test]
-    pub fn new() {
-        let p_check = Production {
-            lhs: vec![symbol("S")],
-            rhs: vec![symbol("A"), symbol("B")],
-        };
-
-        assert_eq!(
-            Production::new(p_check.lhs(), p_check.rhs()).unwrap(),
-            p_check,
-            "Created production rule is not the one expected"
-        );
-    }
-
-    #[test]
-    pub fn new_from_string() {
-        let p_check = Production {
-            lhs: vec![symbol("S")],
-            rhs: vec![symbol("A"), symbol("B")],
-        };
-
-        assert_eq!(
-            Production::new_from_string(vec!["S"], vec!["A", "B"]).unwrap(),
-            p_check,
-            "Created production rule is not the one expected"
-        );
-    }
+    // mod.production
 
     #[test]
     pub fn production() {

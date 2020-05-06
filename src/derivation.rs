@@ -218,7 +218,7 @@ impl Derivation {
         if let Some(last) = self.sentential_forms.last() {
             last.clone()
         } else {
-            vec![self.g.s()]
+            unreachable!()
         }
     }
 
@@ -587,6 +587,9 @@ mod tests {
     use crate::grammar::grammar;
     use crate::production::production;
     use crate::symbol::symbol;
+    use std::fmt::Write;
+
+    // struct.Derivation
 
     #[test]
     pub fn new() {
@@ -634,16 +637,18 @@ mod tests {
             p_index: 0,
             index: 0,
         };
-        match d.step(step.p_index, step.index) {
-            Ok(d) => {
-                assert_eq!(d.steps(), vec![step]);
-                assert_eq!(d.sentential_form(), vec![symbol("A")]);
-                assert_eq!(d.sentential_forms.len(), 2);
-                assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
-                assert_eq!(d.sentential_forms[1], vec![symbol("A")]);
-            }
-            Err(_) => panic!("Step on derivation should not return an error"),
-        }
+        let result = d.step(step.p_index, step.index);
+        assert!(
+            result.is_ok(),
+            "Step on derivation should not return an error"
+        );
+        let d = result.unwrap();
+
+        assert_eq!(d.steps(), vec![step]);
+        assert_eq!(d.sentential_form(), vec![symbol("A")]);
+        assert_eq!(d.sentential_forms.len(), 2);
+        assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
+        assert_eq!(d.sentential_forms[1], vec![symbol("A")]);
     }
 
     #[test]
@@ -654,19 +659,15 @@ mod tests {
             p_index: 2,
             index: 0,
         };
-        match d.step(step.p_index, step.index) {
-            Ok(_) => panic!("Step on derivation should return an error"),
-            Err(e) => match e {
-                DerivationError::WrongProductionIndex(p_index) => {
-                    assert_eq!(p_index, step.p_index);
-                }
-                _ => panic!(
-                    "Step on derivation should return an {} error, but {} was returned instead",
-                    DerivationError::WrongProductionIndex(step.p_index),
-                    e
-                ),
-            },
-        }
+
+        let result = d.step(step.p_index, step.index);
+        assert!(result.is_err(), "Step on derivation should return an error");
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            DerivationError::WrongProductionIndex(step.p_index),
+            "Step on derivation returned the wrong error"
+        );
     }
 
     #[test]
@@ -678,20 +679,14 @@ mod tests {
             p_index: 0,
             index: 1,
         };
-        match d.step(step.p_index, step.index) {
-            Ok(_) => panic!("Step on derivation should return an error"),
-            Err(e) => match e {
-                DerivationError::WrongIndex(sf, index) => {
-                    assert_eq!(sf, sentential_form);
-                    assert_eq!(index, step.index);
-                }
-                _ => panic!(
-                    "Step on derivation should return an {} error, but {} was returned instead",
-                    DerivationError::WrongIndex(sentential_form, step.index),
-                    e
-                ),
-            },
-        }
+        let result = d.step(step.p_index, step.index);
+        assert!(result.is_err(), "Step on derivation should return an error");
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            DerivationError::WrongIndex(sentential_form, step.index),
+            "Step on derivation returned the wrong error"
+        );
     }
 
     #[test]
@@ -704,21 +699,14 @@ mod tests {
             p_index: 2,
             index: 0,
         };
-        match d.step(step.p_index, step.index) {
-            Ok(_) => panic!("Step on derivation should return an error"),
-            Err(e) => match e {
-                DerivationError::ImpossibleStep(p, sf, s) => {
-                    assert_eq!(p, production);
-                    assert_eq!(sf, sentential_form);
-                    assert_eq!(s, step);
-                }
-                _ => panic!(
-                    "Step on derivation should return an {} error, but {} was returned instead",
-                    DerivationError::ImpossibleStep(production, sentential_form, step),
-                    e
-                ),
-            },
-        }
+        let result = d.step(step.p_index, step.index);
+        assert!(result.is_err(), "Step on derivation should return an error");
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            DerivationError::ImpossibleStep(production, sentential_form, step),
+            "Step on derivation returned the wrong error"
+        );
     }
 
     #[test]
@@ -735,17 +723,15 @@ mod tests {
                 index: 0,
             },
         ];
-        match d.step_from_iter(steps.clone()) {
-            Ok(d) => {
-                assert_eq!(d.steps(), steps);
-                assert_eq!(d.sentential_form(), vec![symbol("a")]);
-                assert_eq!(d.sentential_forms.len(), 3);
-                assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
-                assert_eq!(d.sentential_forms[1], vec![symbol("A")]);
-                assert_eq!(d.sentential_forms[2], vec![symbol("a")]);
-            }
-            Err(_) => panic!("Step on derivation should not return an error"),
-        }
+        let result = d.step_from_iter(steps.clone());
+        assert!(result.is_ok(), "Step from iter should not return an error");
+        let d = result.unwrap();
+        assert_eq!(d.steps(), steps);
+        assert_eq!(d.sentential_form(), vec![symbol("a")]);
+        assert_eq!(d.sentential_forms.len(), 3);
+        assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
+        assert_eq!(d.sentential_forms[1], vec![symbol("A")]);
+        assert_eq!(d.sentential_forms[2], vec![symbol("a")]);
     }
 
     #[test]
@@ -764,17 +750,38 @@ mod tests {
             },
         ];
         d = d.step(0, 0).unwrap();
-        match d.leftmost(p_index) {
-            Ok(d) => {
-                assert_eq!(d.steps(), steps);
-                assert_eq!(d.sentential_form(), vec![symbol("a"), symbol("B")]);
-                assert_eq!(d.sentential_forms.len(), 3);
-                assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
-                assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
-                assert_eq!(d.sentential_forms[2], vec![symbol("a"), symbol("B")]);
-            }
-            Err(_) => panic!("Leftmost step on derivation should not return an error"),
-        }
+        let result = d.leftmost(p_index);
+        assert!(
+            result.is_ok(),
+            "Leftmost derivation should not return an error"
+        );
+        let d = result.unwrap();
+        assert_eq!(d.steps(), steps);
+        assert_eq!(d.sentential_form(), vec![symbol("a"), symbol("B")]);
+        assert_eq!(d.sentential_forms.len(), 3);
+        assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
+        assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
+        assert_eq!(d.sentential_forms[2], vec![symbol("a"), symbol("B")]);
+    }
+
+    #[test]
+    pub fn leftmost_no_n_symbol() {
+        let g = grammar("S -> a b | B C\nA -> a");
+        let mut d = super::derivation(g);
+        let p_index = 2;
+        d = d.step(0, 0).unwrap();
+
+        let result = d.leftmost(p_index);
+        assert!(
+            result.is_err(),
+            "Leftmost derivation should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            DerivationError::NoNSymbol(vec![symbol("a"), symbol("b")]),
+            "Leftmost derivation returned error is wrong"
+        );
     }
 
     #[test]
@@ -795,18 +802,19 @@ mod tests {
                 index: 0,
             },
         ];
-        match d.leftmost_from_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index)) {
-            Ok(d) => {
-                assert_eq!(d.steps(), steps);
-                assert_eq!(d.sentential_form(), vec![symbol("b"), symbol("B")]);
-                assert_eq!(d.sentential_forms.len(), 4);
-                assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
-                assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
-                assert_eq!(d.sentential_forms[2], vec![symbol("B"), symbol("B")]);
-                assert_eq!(d.sentential_forms[3], vec![symbol("b"), symbol("B")]);
-            }
-            Err(_) => panic!("Leftmost steps on derivation should not return an error"),
-        }
+        let result = d.leftmost_from_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index));
+        assert!(
+            result.is_ok(),
+            "Leftmost steps on derivation should not return an error"
+        );
+        let d = result.unwrap();
+        assert_eq!(d.steps(), steps);
+        assert_eq!(d.sentential_form(), vec![symbol("b"), symbol("B")]);
+        assert_eq!(d.sentential_forms.len(), 4);
+        assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
+        assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
+        assert_eq!(d.sentential_forms[2], vec![symbol("B"), symbol("B")]);
+        assert_eq!(d.sentential_forms[3], vec![symbol("b"), symbol("B")]);
     }
 
     #[test]
@@ -825,17 +833,39 @@ mod tests {
             },
         ];
         d = d.step(0, 0).unwrap();
-        match d.rightmost(p_index) {
-            Ok(d) => {
-                assert_eq!(d.steps(), steps);
-                assert_eq!(d.sentential_form(), vec![symbol("A"), symbol("b")]);
-                assert_eq!(d.sentential_forms.len(), 3);
-                assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
-                assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
-                assert_eq!(d.sentential_forms[2], vec![symbol("A"), symbol("b")]);
-            }
-            Err(_) => panic!("Rightmost step on derivation should not return an error"),
-        }
+
+        let result = d.rightmost(p_index);
+        assert!(
+            result.is_ok(),
+            "Rightmost step on derivation should not return an error"
+        );
+        let d = result.unwrap();
+        assert_eq!(d.steps(), steps);
+        assert_eq!(d.sentential_form(), vec![symbol("A"), symbol("b")]);
+        assert_eq!(d.sentential_forms.len(), 3);
+        assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
+        assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
+        assert_eq!(d.sentential_forms[2], vec![symbol("A"), symbol("b")]);
+    }
+
+    #[test]
+    pub fn rightmost_no_n_symbol() {
+        let g = grammar("S -> a b | B C\nA -> a");
+        let mut d = super::derivation(g);
+        let p_index = 2;
+        d = d.step(0, 0).unwrap();
+
+        let result = d.rightmost(p_index);
+        assert!(
+            result.is_err(),
+            "Rightmost derivation should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            DerivationError::NoNSymbol(vec![symbol("a"), symbol("b")]),
+            "Rightmost derivation returned error is wrong"
+        );
     }
 
     #[test]
@@ -856,18 +886,21 @@ mod tests {
                 index: 1,
             },
         ];
-        match d.rightmost_from_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index)) {
-            Ok(d) => {
-                assert_eq!(d.steps(), steps);
-                assert_eq!(d.sentential_form(), vec![symbol("A"), symbol("a")]);
-                assert_eq!(d.sentential_forms.len(), 4);
-                assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
-                assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
-                assert_eq!(d.sentential_forms[2], vec![symbol("A"), symbol("A")]);
-                assert_eq!(d.sentential_forms[3], vec![symbol("A"), symbol("a")]);
-            }
-            Err(_) => panic!("Rightmost steps on derivation should not return an error"),
-        }
+
+        let result =
+            d.rightmost_from_iter(steps.clone().iter().map(|x: &DerivationStep| x.p_index));
+        assert!(
+            result.is_ok(),
+            "Rightmost steps on derivation should not return an error"
+        );
+        let d = result.unwrap();
+        assert_eq!(d.steps(), steps);
+        assert_eq!(d.sentential_form(), vec![symbol("A"), symbol("a")]);
+        assert_eq!(d.sentential_forms.len(), 4);
+        assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
+        assert_eq!(d.sentential_forms[1], vec![symbol("A"), symbol("B")]);
+        assert_eq!(d.sentential_forms[2], vec![symbol("A"), symbol("A")]);
+        assert_eq!(d.sentential_forms[3], vec![symbol("A"), symbol("a")]);
     }
 
     #[test]
@@ -908,5 +941,105 @@ mod tests {
             d.possible_steps_by_index(0).unwrap(),
             vec![super::step(0, 0), super::step(1, 0)]
         );
+    }
+
+    #[test]
+    pub fn possible_steps_by_index_wrong_index() {
+        let g = grammar("S -> A | B");
+        let d = super::derivation(g.clone());
+        let result = d.possible_steps_by_index(2);
+        assert!(
+            result.is_err(),
+            "Possible steps by index from input test should return an error"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            DerivationError::WrongIndex(vec![symbol("S")], 2),
+            "Possible steps by index from input test returned the wrong error"
+        );
+    }
+
+    #[test]
+    fn derivation_display() {
+        let mut buf = String::new();
+        let d = Derivation::new(grammar("A -> a")).step(0, 0).unwrap();
+
+        let result = write!(buf, "{}", d);
+        assert!(result.is_ok());
+        assert_eq!(buf, "A -> a")
+    }
+
+    // enum.DerivationError
+
+    #[test]
+    fn derivation_error_display_wrong_production_index() {
+        let mut buf = String::new();
+        let p_index = 0;
+
+        let result = write!(buf, "{}", DerivationError::WrongProductionIndex(p_index));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "Wrong production index: can't find production with index {}° in the grammar",
+                p_index
+            )
+        )
+    }
+
+    #[test]
+    fn derivation_error_display_wrong_index() {
+        let mut buf = String::new();
+        let index = 0;
+        let sf = vec![symbol("A")];
+
+        let result = write!(buf, "{}", DerivationError::WrongIndex(sf.clone(), index));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "Wrong step index: can't find index {}° of sentential form \"{:?}\"",
+                index, sf
+            )
+        )
+    }
+
+    #[test]
+    fn derivation_error_display_impossible_step() {
+        let mut buf = String::new();
+        let p = production("A", "B");
+        let step = super::step(0, 0);
+        let sf = vec![symbol("A")];
+
+        let result = write!(
+            buf,
+            "{}",
+            DerivationError::ImpossibleStep(p.clone(), sf.clone(), step)
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "Impossible step: can't apply {}° production \"{}\" to {}° symbol of sentential form \"{:?}\"",
+                step.p_index, p, step.index, sf
+            )
+        )
+    }
+
+    #[test]
+    fn derivation_error_display_no_n_symbol() {
+        let mut buf = String::new();
+        let sf = vec![symbol("A")];
+
+        let result = write!(buf, "{}", DerivationError::NoNSymbol(sf.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "Impossible step: can't find a non terminal symbol to start the derivation from, within the sentential form \"{:?}\"",
+                sf
+            )
+        )
     }
 }
