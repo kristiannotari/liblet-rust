@@ -124,7 +124,9 @@ impl fmt::Display for Derivation {
                 .iter()
                 .map(|x: &Vec<Symbol>| {
                     x.iter()
-                        .fold(String::new(), |acc: String, s: &Symbol| acc + s.as_str())
+                        .map(|s| s.as_str())
+                        .collect::<Vec<&str>>()
+                        .join(" ")
                 })
                 .collect::<Vec<String>>()
                 .join(" -> ")
@@ -963,11 +965,11 @@ mod tests {
     #[test]
     fn derivation_display() {
         let mut buf = String::new();
-        let d = Derivation::new(grammar("A -> a")).step(0, 0).unwrap();
+        let d = Derivation::new(grammar("A -> a b")).step(0, 0).unwrap();
 
         let result = write!(buf, "{}", d);
         assert!(result.is_ok());
-        assert_eq!(buf, "A -> a")
+        assert_eq!(buf, "A -> a b")
     }
 
     // enum.DerivationError
