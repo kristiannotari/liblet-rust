@@ -39,3 +39,10 @@ More info available at the docs (*coming soon*).
 - [ ] antlr support (not planned)
 - [ ] rich display (not planned yet)
 - [ ] utilities (not planned yet)
+
+## Examples
+
+- [basics](examples/basics.rs)
+- [symbols](examples/symbols.rs)
+- [productions](examples/productions.rs)
+- [derivations](examples/derivations.rs)
