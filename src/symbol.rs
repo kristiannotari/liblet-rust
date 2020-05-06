@@ -321,6 +321,8 @@ mod tests {
     use super::*;
     use std::fmt::Write;
 
+    // struct.Symbol
+
     #[test]
     fn new() {
         let symbol = "A";
@@ -488,6 +490,30 @@ mod tests {
     }
 
     #[test]
+    fn into_iter() {
+        let symbol = super::symbol("Abcdef");
+        let chars_check: &Vec<char> = &vec!['A', 'b', 'c', 'd', 'e', 'f'];
+        let chars: &Vec<char> = &symbol.into_iter().collect();
+
+        assert_eq!(
+            chars, chars_check,
+            "Chars collected from iterating over the symbol are not those expected"
+        )
+    }
+
+    #[test]
+    fn symbol_display() {
+        let mut buf = String::new();
+        let symbol = "A";
+
+        let result = write!(buf, "{}", Symbol::new(symbol).unwrap());
+        assert!(result.is_ok());
+        assert_eq!(buf, symbol)
+    }
+
+    // mod.symbol
+
+    #[test]
     fn symbol() {
         let s = "A";
         assert_eq!(super::symbol(s).as_str(), s)
@@ -507,17 +533,7 @@ mod tests {
         )
     }
 
-    #[test]
-    fn into_iter() {
-        let symbol = super::symbol("Abcdef");
-        let chars_check: &Vec<char> = &vec!['A', 'b', 'c', 'd', 'e', 'f'];
-        let chars: &Vec<char> = &symbol.into_iter().collect();
-
-        assert_eq!(
-            chars, chars_check,
-            "Chars collected from iterating over the symbol are not those expected"
-        )
-    }
+    // enum.SymbolError
 
     #[test]
     fn symbol_error_display_empty_symbol() {
@@ -536,15 +552,5 @@ mod tests {
         let result = write!(buf, "{}", SymbolError::InvalidSymbol(symbol.to_string()));
         assert!(result.is_ok());
         assert_eq!(buf, format!("SymbolError: Invalid symbol \"{}\"", symbol))
-    }
-
-    #[test]
-    fn symbol_display() {
-        let mut buf = String::new();
-        let symbol = "A";
-
-        let result = write!(buf, "{}", Symbol::new(symbol).unwrap());
-        assert!(result.is_ok());
-        assert_eq!(buf, symbol)
     }
 }

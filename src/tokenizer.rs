@@ -94,6 +94,8 @@ mod tests {
     use super::*;
     use std::fmt::Write;
 
+    // mod.tokenizer
+
     #[test]
     fn productions_from_string() {
         let p_check = vec![
@@ -240,6 +242,8 @@ mod tests {
     fn symbols_from_string_empty() {
         assert_eq!(super::symbols_from_string("").len(), 0);
     }
+
+    // enum.TokenizerError
 
     #[test]
     fn tokenizer_error_display_production_no_lhs() {

@@ -441,6 +441,8 @@ mod tests {
     use crate::symbol::symbol;
     use std::fmt::Write;
 
+    // struct.Production
+
     #[test]
     pub fn from_string() {
         let p_check = vec![
@@ -511,86 +513,6 @@ mod tests {
             super::productions("S -> A B\nA -> a\nB -> a | b"),
             p_check,
             "Created production rules are not those expected"
-        );
-    }
-
-    #[test]
-    pub fn predicate_lhs_equals() {
-        let predicate = ProductionPredicate::LhsEquals(vec![symbol("T")]);
-
-        assert!(
-            predicate.test(&Production {
-                lhs: vec![symbol("T")],
-                rhs: vec![]
-            }),
-            "Predicate should return true"
-        );
-        assert!(
-            !predicate.test(&Production {
-                lhs: vec![symbol("F")],
-                rhs: vec![]
-            }),
-            "Predicate should return false"
-        );
-    }
-
-    #[test]
-    pub fn predicate_rhs_equals() {
-        let predicate = ProductionPredicate::RhsEquals(vec![symbol("T")]);
-
-        assert!(
-            predicate.test(&Production {
-                lhs: vec![],
-                rhs: vec![symbol("T")]
-            }),
-            "Predicate should return true"
-        );
-        assert!(
-            !predicate.test(&Production {
-                lhs: vec![],
-                rhs: vec![symbol("F")]
-            }),
-            "Predicate should return false"
-        );
-    }
-
-    #[test]
-    pub fn predicate_rhs_length_equals() {
-        let predicate = ProductionPredicate::RhsLengthEquals(2);
-
-        assert!(
-            predicate.test(&Production {
-                lhs: vec![],
-                rhs: vec![symbol("T1"), symbol("T2")]
-            }),
-            "Predicate should return true"
-        );
-        assert!(
-            !predicate.test(&Production {
-                lhs: vec![],
-                rhs: vec![symbol("F")]
-            }),
-            "Predicate should return false"
-        );
-    }
-
-    #[test]
-    pub fn predicate_rhs_is_suffix_of() {
-        let predicate = ProductionPredicate::RhsIsSuffixOf(vec![symbol("T2"), symbol("T3")]);
-
-        assert!(
-            predicate.test(&Production {
-                lhs: vec![],
-                rhs: vec![symbol("T1"), symbol("T2"), symbol("T3")]
-            }),
-            "Predicate should return true"
-        );
-        assert!(
-            !predicate.test(&Production {
-                lhs: vec![],
-                rhs: vec![symbol("F")]
-            }),
-            "Predicate should return false"
         );
     }
 
@@ -711,38 +633,16 @@ mod tests {
     }
 
     #[test]
-    pub fn production() {
-        let p_check = Production {
-            lhs: vec![symbol("S")],
-            rhs: vec![symbol("A"), symbol("B")],
-        };
+    fn production_display() {
+        let mut buf = String::new();
+        let p = super::production("A", "B C");
 
-        assert_eq!(
-            super::production("S", "A B"),
-            p_check,
-            "Created production rule is not the one expected"
-        );
+        let result = write!(buf, "{}", p);
+        assert!(result.is_ok());
+        assert_eq!(buf, "A -> B C")
     }
 
-    #[test]
-    pub fn productions() {
-        let p_check = vec![
-            Production {
-                lhs: vec![symbol("S")],
-                rhs: vec![symbol("A"), symbol("B")],
-            },
-            Production {
-                lhs: vec![symbol("A")],
-                rhs: vec![symbol("a")],
-            },
-        ];
-
-        assert_eq!(
-            super::productions("S -> A B\nA -> a"),
-            p_check,
-            "Created production rules are not those expected"
-        );
-    }
+    // enum.ProductionError
 
     #[test]
     fn production_error_display_no_lhs() {
@@ -791,13 +691,121 @@ mod tests {
         )
     }
 
-    #[test]
-    fn production_display() {
-        let mut buf = String::new();
-        let p = super::production("A", "B C");
+    // enum.ProductionPredicate
 
-        let result = write!(buf, "{}", p);
-        assert!(result.is_ok());
-        assert_eq!(buf, "A -> B C")
+    #[test]
+    pub fn predicate_lhs_equals() {
+        let predicate = ProductionPredicate::LhsEquals(vec![symbol("T")]);
+
+        assert!(
+            predicate.test(&Production {
+                lhs: vec![symbol("T")],
+                rhs: vec![]
+            }),
+            "Predicate should return true"
+        );
+        assert!(
+            !predicate.test(&Production {
+                lhs: vec![symbol("F")],
+                rhs: vec![]
+            }),
+            "Predicate should return false"
+        );
+    }
+
+    #[test]
+    pub fn predicate_rhs_equals() {
+        let predicate = ProductionPredicate::RhsEquals(vec![symbol("T")]);
+
+        assert!(
+            predicate.test(&Production {
+                lhs: vec![],
+                rhs: vec![symbol("T")]
+            }),
+            "Predicate should return true"
+        );
+        assert!(
+            !predicate.test(&Production {
+                lhs: vec![],
+                rhs: vec![symbol("F")]
+            }),
+            "Predicate should return false"
+        );
+    }
+
+    #[test]
+    pub fn predicate_rhs_length_equals() {
+        let predicate = ProductionPredicate::RhsLengthEquals(2);
+
+        assert!(
+            predicate.test(&Production {
+                lhs: vec![],
+                rhs: vec![symbol("T1"), symbol("T2")]
+            }),
+            "Predicate should return true"
+        );
+        assert!(
+            !predicate.test(&Production {
+                lhs: vec![],
+                rhs: vec![symbol("F")]
+            }),
+            "Predicate should return false"
+        );
+    }
+
+    #[test]
+    pub fn predicate_rhs_is_suffix_of() {
+        let predicate = ProductionPredicate::RhsIsSuffixOf(vec![symbol("T2"), symbol("T3")]);
+
+        assert!(
+            predicate.test(&Production {
+                lhs: vec![],
+                rhs: vec![symbol("T1"), symbol("T2"), symbol("T3")]
+            }),
+            "Predicate should return true"
+        );
+        assert!(
+            !predicate.test(&Production {
+                lhs: vec![],
+                rhs: vec![symbol("F")]
+            }),
+            "Predicate should return false"
+        );
+    }
+
+    // mod.production
+
+    #[test]
+    pub fn production() {
+        let p_check = Production {
+            lhs: vec![symbol("S")],
+            rhs: vec![symbol("A"), symbol("B")],
+        };
+
+        assert_eq!(
+            super::production("S", "A B"),
+            p_check,
+            "Created production rule is not the one expected"
+        );
+    }
+
+    #[test]
+    pub fn productions() {
+        let p_check = vec![
+            Production {
+                lhs: vec![symbol("S")],
+                rhs: vec![symbol("A"), symbol("B")],
+            },
+            Production {
+                lhs: vec![symbol("A")],
+                rhs: vec![symbol("a")],
+            },
+        ];
+
+        assert_eq!(
+            super::productions("S -> A B\nA -> a"),
+            p_check,
+            "Created production rules are not those expected"
+        );
     }
 }

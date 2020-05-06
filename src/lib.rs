@@ -11,6 +11,11 @@
 //! how objects can interact with others. However, this should not be a reference for algorithms implementations,
 //! but a set of tools to create your own, instead. They will be there, too, just in case.
 //!
+//! # Notice
+//! This project is also a learning project for writing libraries in Rust.
+//! If you encounter any issue or have any advice, please report them. Thanks a lot.
+//!
+//!
 //! # Examples
 //! Simple grammar creation from string:
 //! ```rust
