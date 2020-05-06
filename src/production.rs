@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ProductionError {
     /// Error returned for trying to create a Production with an empty / missing left hand side.
     /// Left hand side of productions should be an ordered collection of n >= 1 symbols.
