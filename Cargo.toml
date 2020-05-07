@@ -9,3 +9,4 @@ license = "MIT"
 
 [dependencies]
 itertools = "0.9.0"
+serde = { version = "1.0.106", features = ["derive"] }

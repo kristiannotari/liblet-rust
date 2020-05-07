@@ -6,11 +6,12 @@
 
 use crate::grammar::Grammar;
 use crate::production::Production;
-use crate::symbol::Symbol;
+use crate::symbol::{sentential_form, Symbol};
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum DerivationError {
     /// Error for when the derivation tries to apply a production whose index is not in the valid ones for the grammar.
     ///
@@ -88,10 +89,16 @@ impl Error for DerivationError {}
 /// (it matches the grammar start symbol initially), then apply a derivation step based on:
 /// - p_index = 0, so the 0° (first) production rule of the grammar will be used (`A -> B C`)
 /// - index = 0, so the 0° (first) symbol of the current sentential form (`A`) which is `A`
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct DerivationStep {
     pub p_index: usize,
     pub index: usize,
+}
+
+impl fmt::Display for DerivationStep {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.p_index, self.index)
+    }
 }
 
 /// The main type of this module.
@@ -108,7 +115,7 @@ pub struct DerivationStep {
 /// # Notice
 /// A derivation needs to borrow a grammar, in order for it to work even if the grammar is then left. So if the original grammar is then modified,
 /// it doesn't affect the derivation of the original one.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Derivation {
     g: Grammar,
     steps: Vec<DerivationStep>,
@@ -122,12 +129,7 @@ impl fmt::Display for Derivation {
             "{}",
             self.sentential_forms
                 .iter()
-                .map(|x: &Vec<Symbol>| {
-                    x.iter()
-                        .map(|s| s.as_str())
-                        .collect::<Vec<&str>>()
-                        .join(" ")
-                })
+                .map(|x: &Vec<Symbol>| { sentential_form(x.clone()) })
                 .collect::<Vec<String>>()
                 .join(" -> ")
         )

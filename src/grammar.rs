@@ -7,14 +7,15 @@
 //!
 //! It can be easily constructed from `&str`s or collections of [Symbol](../symbol/struct.Symbol.html)s and [Production](../production/struct.Production.html)s.
 
-use crate::production::{Production, ProductionError};
-use crate::symbol::{Symbol, SymbolError};
+use crate::production::{production_table, Production, ProductionError};
+use crate::symbol::{sentential_form, Symbol, SymbolError};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum GrammarError {
     /// Error returned if any of the given non terminals is an invalid non terminal symbol.
     WrongNonTerminals,
@@ -74,7 +75,15 @@ impl fmt::Display for GrammarError {
     }
 }
 
-impl Error for GrammarError {}
+impl Error for GrammarError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            GrammarError::SymbolError(e) => Some(e),
+            GrammarError::ProductionError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 impl std::convert::From<ProductionError> for GrammarError {
     fn from(e: ProductionError) -> Self {
@@ -95,12 +104,33 @@ impl std::convert::From<ProductionError> for GrammarError {
 /// The s (start symbol) element will be the left hand side of the first production encountered, which has to be a 1 symbol long length.
 /// For further details about the formatting of the raw string, you can have a look at how
 /// to specify productions from a raw string in the [Production](../production/struct.Production.html) documentation.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Grammar {
     n: HashSet<Symbol>,
     t: HashSet<Symbol>,
     p: Vec<Production>,
     s: Symbol,
+}
+
+impl fmt::Display for Grammar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "n: {}\nt: {}\np:\n{}\ns: {}",
+            sentential_form(self.n.clone()),
+            sentential_form(self.t.clone()),
+            production_table(self.p.clone()),
+            self.s
+        )
+    }
+}
+
+impl std::convert::TryFrom<&str> for Grammar {
+    type Error = GrammarError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Grammar::from_string(value)
+    }
 }
 
 impl Grammar {
@@ -705,6 +735,7 @@ mod tests {
     use crate::production::production;
     use crate::symbol::symbol;
     use crate::tokenizer::TokenizerError;
+    use std::convert::TryFrom;
     use std::fmt::Write;
 
     // struct.Grammar
@@ -1193,7 +1224,28 @@ mod tests {
         );
     }
 
+    #[test]
+    pub fn grammar_display() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", super::grammar("A -> a\nB -> b"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    pub fn grammar_try_from() {
+        let result = Grammar::try_from("A -> a");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    pub fn grammar_try_from_error() {
+        let result = Grammar::try_from(" -> a");
+        assert!(result.is_err());
+    }
+
     // mod.grammar
+
     #[test]
     pub fn grammar() {
         let s_check: Symbol = symbol("S");
@@ -1351,5 +1403,28 @@ mod tests {
             buf,
             format!("GrammarError: production error encountered = {}", e)
         )
+    }
+
+    #[test]
+    fn grammar_error_source() {
+        assert!(GrammarError::ProductionError(ProductionError::NoLhs)
+            .source()
+            .is_some());
+        assert!(GrammarError::SymbolError(SymbolError::EmptySymbol)
+            .source()
+            .is_some());
+    }
+
+    #[test]
+    fn grammar_error_source_none() {
+        assert!(GrammarError::MultipleStartSymbols(production("A", "B"))
+            .source()
+            .is_none());
+        assert!(GrammarError::NoStartSymbol(None).source().is_none());
+        assert!(GrammarError::WrongNonTerminals.source().is_none());
+        assert!(GrammarError::WrongTerminals.source().is_none());
+        assert!(GrammarError::WrongStartSymbol(symbol("a"))
+            .source()
+            .is_none());
     }
 }
