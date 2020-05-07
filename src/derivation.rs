@@ -965,7 +965,7 @@ mod tests {
     }
 
     #[test]
-    fn derivation_display() {
+    pub fn derivation_display() {
         let mut buf = String::new();
         let d = Derivation::new(grammar("A -> a b")).step(0, 0).unwrap();
 
@@ -977,7 +977,7 @@ mod tests {
     // enum.DerivationError
 
     #[test]
-    fn derivation_error_display_wrong_production_index() {
+    pub fn derivation_error_display_wrong_production_index() {
         let mut buf = String::new();
         let p_index = 0;
 
@@ -993,7 +993,7 @@ mod tests {
     }
 
     #[test]
-    fn derivation_error_display_wrong_index() {
+    pub fn derivation_error_display_wrong_index() {
         let mut buf = String::new();
         let index = 0;
         let sf = vec![symbol("A")];
@@ -1010,7 +1010,7 @@ mod tests {
     }
 
     #[test]
-    fn derivation_error_display_impossible_step() {
+    pub fn derivation_error_display_impossible_step() {
         let mut buf = String::new();
         let p = production("A", "B");
         let step = super::step(0, 0);
@@ -1032,7 +1032,7 @@ mod tests {
     }
 
     #[test]
-    fn derivation_error_display_no_n_symbol() {
+    pub fn derivation_error_display_no_n_symbol() {
         let mut buf = String::new();
         let sf = vec![symbol("A")];
 
@@ -1045,5 +1045,16 @@ mod tests {
                 sf
             )
         )
+    }
+
+    // struct.DerivationStep
+
+    #[test]
+    pub fn derivation_step_display() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", super::step(1, 0));
+        assert!(result.is_ok());
+        assert_eq!(buf, "(1, 0)")
     }
 }
