@@ -267,20 +267,38 @@ impl Symbol {
             })
     }
 
-    /// Return a new symbol which represent the empty symbol 'ε'.
+    /// Return a new symbol which represents the empty symbol 'ε'.
     ///
     /// # Examples
     /// ```rust
     /// use liblet::symbol::Symbol;
     ///
-    /// let symbol = Symbol::empty();
+    /// let symbol = Symbol::epsilon();
     ///
     /// assert_eq!(symbol.to_string(), "ε");
     /// ```
-    pub fn empty() -> Symbol {
+    pub fn epsilon() -> Symbol {
         Symbol {
             string: EPSILON.to_string(),
         }
+    }
+
+    /// Check if a symbol is the empty symbol ε.
+    ///
+    /// Return `true` if it is, `false` otherwise.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use liblet::symbol::{Symbol,symbol};
+    ///
+    /// let symbol_epsilon = Symbol::epsilon();
+    /// let symbol_other = symbol("A");
+    ///
+    /// assert!(symbol_epsilon.is_epsilon());
+    /// assert!(!symbol_other.is_epsilon());
+    /// ```
+    pub fn is_epsilon(&self) -> bool {
+        self == &Symbol::epsilon()
     }
 }
 
@@ -516,8 +534,8 @@ mod tests {
     }
 
     #[test]
-    fn empty() {
-        let symbol = Symbol::empty();
+    fn epsilon() {
+        let symbol = Symbol::epsilon();
         assert_eq!(symbol.to_string(), EPSILON.to_string());
     }
 
@@ -563,6 +581,15 @@ mod tests {
         assert!(result.is_err());
         let e = result.unwrap_err();
         assert_eq!(e, SymbolError::EmptySymbol);
+    }
+
+    #[test]
+    fn symbol_is_epsilon() {
+        let symbol_epsilon = Symbol::epsilon();
+        let symbol_other = super::symbol("A");
+
+        assert!(symbol_epsilon.is_epsilon());
+        assert!(!symbol_other.is_epsilon());
     }
 
     // mod.symbol

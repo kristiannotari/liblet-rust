@@ -529,7 +529,7 @@ mod tests {
     // struct.Production
 
     #[test]
-    pub fn from_string() {
+    fn from_string() {
         let p_check = vec![
             Production {
                 lhs: vec![symbol("S")],
@@ -557,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_string_error() {
+    fn from_string_error() {
         let error = TokenizerError::ProductionNoRhs("S".to_string());
         let result = Production::from_string("S ->\n -> a | B\nB -> b");
 
@@ -574,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_iter() {
+    fn from_iter() {
         let p_check = vec![
             Production {
                 lhs: vec![symbol("S")],
@@ -602,7 +602,7 @@ mod tests {
     }
 
     #[test]
-    pub fn such_that() {
+    fn such_that() {
         let filter = Production::such_that(ProductionPredicate::LhsEquals(vec![symbol("T")]));
         let productions = Production::from_string("S -> A | B\nA -> a\nT -> t\nB -> B").unwrap();
 
@@ -622,7 +622,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new() {
+    fn new() {
         let p_check = Production {
             lhs: vec![symbol("S")],
             rhs: vec![symbol("A"), symbol("B")],
@@ -636,7 +636,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_empty_side_lhs() {
+    fn new_empty_side_lhs() {
         let iter = vec![symbol("S")];
 
         let result = Production::new(vec![], iter);
@@ -653,7 +653,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_empty_side_rhs() {
+    fn new_empty_side_rhs() {
         let iter = vec![symbol("S")];
 
         let result = Production::new(iter, vec![]);
@@ -670,7 +670,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string() {
+    fn new_from_string() {
         let p_check = Production {
             lhs: vec![symbol("S")],
             rhs: vec![symbol("A"), symbol("B")],
@@ -684,7 +684,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string_error_lhs() {
+    fn new_from_string_error_lhs() {
         let error = SymbolError::InvalidSymbol("\n".to_string());
         let result = Production::new_from_string(vec!["\n"], vec!["A", "B"]);
 
@@ -701,7 +701,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string_error_rhs() {
+    fn new_from_string_error_rhs() {
         let error = SymbolError::InvalidSymbol("\n".to_string());
         let result = Production::new_from_string(vec!["S"], vec!["\n"]);
 
@@ -838,7 +838,7 @@ mod tests {
     // enum.ProductionPredicate
 
     #[test]
-    pub fn predicate_lhs_equals() {
+    fn predicate_lhs_equals() {
         let predicate = ProductionPredicate::LhsEquals(vec![symbol("T")]);
 
         assert!(
@@ -858,7 +858,7 @@ mod tests {
     }
 
     #[test]
-    pub fn predicate_rhs_equals() {
+    fn predicate_rhs_equals() {
         let predicate = ProductionPredicate::RhsEquals(vec![symbol("T")]);
 
         assert!(
@@ -878,7 +878,7 @@ mod tests {
     }
 
     #[test]
-    pub fn predicate_rhs_length_equals() {
+    fn predicate_rhs_length_equals() {
         let predicate = ProductionPredicate::RhsLengthEquals(2);
 
         assert!(
@@ -898,7 +898,7 @@ mod tests {
     }
 
     #[test]
-    pub fn predicate_rhs_is_suffix_of() {
+    fn predicate_rhs_is_suffix_of() {
         let predicate = ProductionPredicate::RhsIsSuffixOf(vec![symbol("T2"), symbol("T3")]);
 
         assert!(
@@ -968,7 +968,7 @@ mod tests {
     // mod.production
 
     #[test]
-    pub fn production() {
+    fn production() {
         let p_check = Production {
             lhs: vec![symbol("S")],
             rhs: vec![symbol("A"), symbol("B")],
@@ -982,7 +982,7 @@ mod tests {
     }
 
     #[test]
-    pub fn productions() {
+    fn productions() {
         let p_check = vec![
             Production {
                 lhs: vec![symbol("S")],
@@ -1002,7 +1002,7 @@ mod tests {
     }
 
     #[test]
-    pub fn production_table() {
+    fn production_table() {
         let p = super::productions(
             "
             A -> B C

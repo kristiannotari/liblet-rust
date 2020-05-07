@@ -264,7 +264,7 @@ impl Derivation {
         let mut lhs: Vec<Symbol> = sf.split_off(step.index);
 
         if lhs.starts_with(&p.lhs()) {
-            let mut rhs = p.rhs().clone();
+            let mut rhs = p.rhs().into_iter().filter(|s| !s.is_epsilon()).collect();
             let mut remaining = lhs.split_off(p.lhs().len());
             sf.append(&mut rhs);
             sf.append(&mut remaining);
@@ -596,7 +596,7 @@ mod tests {
     // struct.Derivation
 
     #[test]
-    pub fn new() {
+    fn new() {
         let g = grammar("S -> A | B");
         let d = Derivation::new(g.clone());
 
@@ -606,7 +606,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from() {
+    fn new_from() {
         let g = grammar("S -> A | B\nA -> a");
         let d = Derivation::new_from(g.clone(), vec![symbol("A")]);
 
@@ -616,7 +616,7 @@ mod tests {
     }
 
     #[test]
-    pub fn derivation() {
+    fn derivation() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
 
@@ -626,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    pub fn sentential_form_before_steps() {
+    fn sentential_form_before_steps() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
 
@@ -634,7 +634,7 @@ mod tests {
     }
 
     #[test]
-    pub fn step() {
+    fn step() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         let step = DerivationStep {
@@ -656,7 +656,29 @@ mod tests {
     }
 
     #[test]
-    pub fn step_wrong_production_index() {
+    fn step_epsilon() {
+        let g = grammar("S -> A | ε");
+        let d = super::derivation(g.clone());
+        let step = DerivationStep {
+            p_index: 1,
+            index: 0,
+        };
+        let result = d.step(step.p_index, step.index);
+        assert!(
+            result.is_ok(),
+            "Step on derivation should not return an error"
+        );
+        let d = result.unwrap();
+
+        assert_eq!(d.steps(), vec![step]);
+        assert_eq!(d.sentential_form(), vec![]);
+        assert_eq!(d.sentential_forms.len(), 2);
+        assert_eq!(d.sentential_forms[0], vec![symbol("S")]);
+        assert_eq!(d.sentential_forms[1], vec![]);
+    }
+
+    #[test]
+    fn step_wrong_production_index() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         let step = DerivationStep {
@@ -675,7 +697,7 @@ mod tests {
     }
 
     #[test]
-    pub fn step_wrong_index() {
+    fn step_wrong_index() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         let sentential_form = vec![symbol("S")];
@@ -694,7 +716,7 @@ mod tests {
     }
 
     #[test]
-    pub fn step_impossible_step() {
+    fn step_impossible_step() {
         let g = grammar("S -> A | B\nA -> a");
         let d = super::derivation(g.clone());
         let sentential_form = vec![symbol("S")];
@@ -714,7 +736,7 @@ mod tests {
     }
 
     #[test]
-    pub fn step_from_iter() {
+    fn step_from_iter() {
         let g = grammar("S -> A | B\nA -> a");
         let d = super::derivation(g.clone());
         let steps: Vec<DerivationStep> = vec![
@@ -739,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    pub fn leftmost() {
+    fn leftmost() {
         let g = grammar("S -> A B | B C\nA -> a");
         let mut d = super::derivation(g.clone());
         let p_index = 2;
@@ -769,7 +791,7 @@ mod tests {
     }
 
     #[test]
-    pub fn leftmost_no_n_symbol() {
+    fn leftmost_no_n_symbol() {
         let g = grammar("S -> a b | B C\nA -> a");
         let mut d = super::derivation(g);
         let p_index = 2;
@@ -789,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    pub fn leftmost_from_iter() {
+    fn leftmost_from_iter() {
         let g = grammar("S -> A B | B C\nA -> B\n B -> b");
         let d = super::derivation(g.clone());
         let steps = vec![
@@ -822,7 +844,7 @@ mod tests {
     }
 
     #[test]
-    pub fn rightmost() {
+    fn rightmost() {
         let g = grammar("S -> A B | B\nB -> b");
         let mut d = super::derivation(g.clone());
         let p_index = 2;
@@ -853,7 +875,7 @@ mod tests {
     }
 
     #[test]
-    pub fn rightmost_no_n_symbol() {
+    fn rightmost_no_n_symbol() {
         let g = grammar("S -> a b | B C\nA -> a");
         let mut d = super::derivation(g);
         let p_index = 2;
@@ -873,7 +895,7 @@ mod tests {
     }
 
     #[test]
-    pub fn rightmost_from_iter() {
+    fn rightmost_from_iter() {
         let g = grammar("S -> A B | B\nB -> A\nA -> a");
         let d = super::derivation(g.clone());
         let steps = vec![
@@ -908,7 +930,7 @@ mod tests {
     }
 
     #[test]
-    pub fn is_possible_step_true() {
+    fn is_possible_step_true() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         assert!(
@@ -918,7 +940,7 @@ mod tests {
     }
 
     #[test]
-    pub fn is_possible_step_false() {
+    fn is_possible_step_false() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         assert!(
@@ -928,7 +950,7 @@ mod tests {
     }
 
     #[test]
-    pub fn possible_steps_by_prod() {
+    fn possible_steps_by_prod() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         assert_eq!(
@@ -938,7 +960,7 @@ mod tests {
     }
 
     #[test]
-    pub fn possible_steps_by_index() {
+    fn possible_steps_by_index() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         assert_eq!(
@@ -948,7 +970,7 @@ mod tests {
     }
 
     #[test]
-    pub fn possible_steps_by_index_wrong_index() {
+    fn possible_steps_by_index_wrong_index() {
         let g = grammar("S -> A | B");
         let d = super::derivation(g.clone());
         let result = d.possible_steps_by_index(2);
@@ -965,7 +987,7 @@ mod tests {
     }
 
     #[test]
-    pub fn derivation_display() {
+    fn derivation_display() {
         let mut buf = String::new();
         let d = Derivation::new(grammar("A -> a b")).step(0, 0).unwrap();
 
@@ -977,7 +999,7 @@ mod tests {
     // enum.DerivationError
 
     #[test]
-    pub fn derivation_error_display_wrong_production_index() {
+    fn derivation_error_display_wrong_production_index() {
         let mut buf = String::new();
         let p_index = 0;
 
@@ -993,7 +1015,7 @@ mod tests {
     }
 
     #[test]
-    pub fn derivation_error_display_wrong_index() {
+    fn derivation_error_display_wrong_index() {
         let mut buf = String::new();
         let index = 0;
         let sf = vec![symbol("A")];
@@ -1010,7 +1032,7 @@ mod tests {
     }
 
     #[test]
-    pub fn derivation_error_display_impossible_step() {
+    fn derivation_error_display_impossible_step() {
         let mut buf = String::new();
         let p = production("A", "B");
         let step = super::step(0, 0);
@@ -1032,7 +1054,7 @@ mod tests {
     }
 
     #[test]
-    pub fn derivation_error_display_no_n_symbol() {
+    fn derivation_error_display_no_n_symbol() {
         let mut buf = String::new();
         let sf = vec![symbol("A")];
 
@@ -1050,7 +1072,7 @@ mod tests {
     // struct.DerivationStep
 
     #[test]
-    pub fn derivation_step_display() {
+    fn derivation_step_display() {
         let mut buf = String::new();
 
         let result = write!(buf, "{}", super::step(1, 0));
