@@ -21,20 +21,9 @@ fn main() {
     ",
     );
 
-    // prints out the grammar non terminal symbols (N)
-    // [Sentence, Name, List, End]
-    println!("Grammar n: {:?}", g.n());
-
-    // prints out the grammar terminal symbols (T)
-    // [,, tom, dick, harry]
-    println!("Grammar t: {:?}", g.t());
-
-    // prints out the grammar production rules (P)
-    println!("Grammar p: {:?}", g.p());
-
-    // prints out the grammar start symbol (S)
-    // "Sentence"
-    println!("Grammar s: {}", g.s());
+    // prints out the grammar
+    // it will show the n, t and s symbols and the productions
+    println!("{}", g);
 
     // you can also construct symbols from string directly
     // check out the documentation to know which kind of strings/chars

@@ -1,7 +1,5 @@
 # liblet-rust
 
-`v0.1.0`
-
 [![Build Status](https://travis-ci.org/kristiannotari/liblet-rust.png?branch=master)](https://travis-ci.org/kristiannotari/liblet-rust)
 [![codecov](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master/graph/badge.svg)](https://codecov.io/gh/kristiannotari/liblet-rust)
 ![GitHub](https://img.shields.io/github/license/kristiannotari/liblet-rust)
@@ -19,11 +17,9 @@ A generic and _possibly_ updated roadmap/to-do list is available in this repo pr
 
 > Moreover, you won't find parameters like "context_free" flags for switching behaviour depending on grammar type, because there's no such equivalent switch in implementation planned for this library at the moment. This library implementation ignores the grammar type concepts, at least at the moment, for those features which don't need a strict grammar type level (eg. grammar creation, grammar restrict_to function).
 
-## Contributing
-
 If you want to contribute or correct any errors, please do so opening a issues or creating pull requests.
 
-## Ported features
+## Features
 
 More info available at the docs (*coming soon*).
 
@@ -46,3 +42,18 @@ More info available at the docs (*coming soon*).
 - [symbols](examples/symbols.rs)
 - [productions](examples/productions.rs)
 - [derivations](examples/derivations.rs)
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0
+   ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license
+   ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

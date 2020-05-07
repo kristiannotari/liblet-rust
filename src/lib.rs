@@ -1,3 +1,5 @@
+#![doc(html_root_url = "https://docs.rs/liblet/0.1.0")]
+
 //! Porting project for the liblet library of the Unimi course "Linguaggi e Traduttori" in Rust.
 //!
 //! The aim of this library is to provide a set of convenient data types representing the usual

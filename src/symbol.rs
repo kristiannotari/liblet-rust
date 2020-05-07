@@ -7,12 +7,13 @@
 
 use crate::tokenizer;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
 
 const EPSILON: char = 'ε';
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum SymbolError {
     /// Error resulting from the attempt to create a Symbol from an empty collection of chars.
     EmptySymbol,
@@ -53,7 +54,7 @@ impl Error for SymbolError {}
 /// - string can't contain anything else
 ///
 /// It also implements the `IntoIterator` to iterate over the collection of chars which make up the Symbol.
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Symbol {
     string: String,
 }
@@ -61,6 +62,14 @@ pub struct Symbol {
 impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.string)
+    }
+}
+
+impl std::convert::TryFrom<&str> for Symbol {
+    type Error = SymbolError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Symbol::new(value)
     }
 }
 
@@ -258,20 +267,38 @@ impl Symbol {
             })
     }
 
-    /// Return a new symbol which represent the empty symbol 'ε'.
+    /// Return a new symbol which represents the empty symbol 'ε'.
     ///
     /// # Examples
     /// ```rust
     /// use liblet::symbol::Symbol;
     ///
-    /// let symbol = Symbol::empty();
+    /// let symbol = Symbol::epsilon();
     ///
     /// assert_eq!(symbol.to_string(), "ε");
     /// ```
-    pub fn empty() -> Symbol {
+    pub fn epsilon() -> Symbol {
         Symbol {
             string: EPSILON.to_string(),
         }
+    }
+
+    /// Check if a symbol is the empty symbol ε.
+    ///
+    /// Return `true` if it is, `false` otherwise.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use liblet::symbol::{Symbol,symbol};
+    ///
+    /// let symbol_epsilon = Symbol::epsilon();
+    /// let symbol_other = symbol("A");
+    ///
+    /// assert!(symbol_epsilon.is_epsilon());
+    /// assert!(!symbol_other.is_epsilon());
+    /// ```
+    pub fn is_epsilon(&self) -> bool {
+        self == &Symbol::epsilon()
     }
 }
 
@@ -315,10 +342,33 @@ pub fn symbols(string: &str) -> Vec<Symbol> {
     Symbol::from_string(string).unwrap()
 }
 
+/// Convenience function for creating a string represention of
+/// a collection of symbols
+///
+/// # Examples
+/// ```rust
+/// use liblet::symbol::{symbols,sentential_form};
+///
+/// let result = sentential_form(symbols("A B C"));
+///
+/// assert_eq!(result, "A B C");
+/// ```
+pub fn sentential_form<I>(symbols: I) -> String
+where
+    I: IntoIterator<Item = Symbol>,
+{
+    symbols
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
+    use std::convert::TryFrom;
     use std::fmt::Write;
 
     // struct.Symbol
@@ -484,8 +534,8 @@ mod tests {
     }
 
     #[test]
-    fn empty() {
-        let symbol = Symbol::empty();
+    fn epsilon() {
+        let symbol = Symbol::epsilon();
         assert_eq!(symbol.to_string(), EPSILON.to_string());
     }
 
@@ -511,6 +561,37 @@ mod tests {
         assert_eq!(buf, symbol)
     }
 
+    #[test]
+    fn symbol_try_from() {
+        let result = Symbol::try_from("A");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn symbol_try_from_invalid() {
+        let result = Symbol::try_from("\n");
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(e, SymbolError::InvalidSymbol("\n".to_string()));
+    }
+
+    #[test]
+    fn symbol_try_from_empty() {
+        let result = Symbol::try_from("");
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(e, SymbolError::EmptySymbol);
+    }
+
+    #[test]
+    fn symbol_is_epsilon() {
+        let symbol_epsilon = Symbol::epsilon();
+        let symbol_other = super::symbol("A");
+
+        assert!(symbol_epsilon.is_epsilon());
+        assert!(!symbol_other.is_epsilon());
+    }
+
     // mod.symbol
 
     #[test]
@@ -531,6 +612,15 @@ mod tests {
                 super::symbol("D"),
             ]
         )
+    }
+
+    #[test]
+    fn sentential_form() {
+        let result = super::sentential_form(super::symbols("A B C"));
+        assert_eq!(
+            result, "A B C",
+            "Sentential form from collection of symbols is wrong"
+        );
     }
 
     // enum.SymbolError

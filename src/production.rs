@@ -7,15 +7,16 @@
 //!
 //! It can be easily constructed from `&str`s or collections of [Symbol](../symbol/struct.Symbol.html)s.
 
-use crate::symbol::{Symbol, SymbolError};
+use crate::symbol::{sentential_form, Symbol, SymbolError};
 use crate::tokenizer;
 use crate::tokenizer::TokenizerError;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ProductionError {
     /// Error returned for trying to create a Production with an empty / missing left hand side.
     /// Left hand side of productions should be an ordered collection of n >= 1 symbols.
@@ -49,7 +50,15 @@ impl fmt::Display for ProductionError {
     }
 }
 
-impl Error for ProductionError {}
+impl Error for ProductionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            ProductionError::SymbolError(e) => Some(e),
+            ProductionError::FormatError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 impl std::convert::From<TokenizerError> for ProductionError {
     fn from(e: TokenizerError) -> Self {
@@ -60,6 +69,7 @@ impl std::convert::From<TokenizerError> for ProductionError {
 /// A predicate for checking if production match some expected characteristics.
 ///
 /// You can test a predicate on a Production by using the [test]: #method.test method.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ProductionPredicate {
     /// It checks if the left hand side of the production equals the given ordered collection of symbols.
     LhsEquals(Vec<Symbol>),
@@ -95,6 +105,31 @@ impl ProductionPredicate {
     }
 }
 
+impl fmt::Display for ProductionPredicate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProductionPredicate::LhsEquals(symbols) => write!(
+                f,
+                "ProductionPredicate: lhs == {}",
+                sentential_form(symbols.clone())
+            ),
+            ProductionPredicate::RhsEquals(symbols) => write!(
+                f,
+                "ProductionPredicate: rhs == {}",
+                sentential_form(symbols.clone())
+            ),
+            ProductionPredicate::RhsIsSuffixOf(symbols) => write!(
+                f,
+                "ProductionPredicate: rhs suffix == {}",
+                sentential_form(symbols.clone())
+            ),
+            ProductionPredicate::RhsLengthEquals(length) => {
+                write!(f, "ProductionPredicate: rhs length == {}", length)
+            }
+        }
+    }
+}
+
 /// The main type of this module.
 ///
 /// It allows to abstract over grammar productions, having a defined left and right and side,
@@ -118,7 +153,7 @@ impl ProductionPredicate {
 /// `A -> B\nA -> C` leads to the same result of the above one, defining the two productions separately
 ///
 /// `A -> ` will results in an error, because there's no right hand side for the production
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Production {
     lhs: Vec<Symbol>,
     rhs: Vec<Symbol>,
@@ -135,6 +170,28 @@ impl fmt::Display for Production {
         }
 
         Ok(())
+    }
+}
+
+impl std::convert::TryFrom<&str> for Production {
+    type Error = ProductionError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let p = Production::from_string(value)?;
+        let mut p_iter = p.iter();
+        if let Some(p) = p_iter.next() {
+            if p_iter.next().is_none() {
+                Ok(p.clone())
+            } else {
+                Err(ProductionError::FormatError(
+                    TokenizerError::ProductionMultiple(value.to_string()),
+                ))
+            }
+        } else {
+            Err(ProductionError::FormatError(
+                TokenizerError::ProductionNoSeparator(value.to_string()),
+            ))
+        }
     }
 }
 
@@ -434,17 +491,45 @@ pub fn productions(string: &str) -> Vec<Production> {
     Production::from_string(string).unwrap()
 }
 
+/// Convenience function for creating visual representation of
+/// a collection of productions, ordered.
+///
+/// # Examples
+/// ```rust
+/// use liblet::production::{production_table, productions};
+///
+/// let p = productions("
+///     A -> B C
+///     B -> b
+/// ");
+/// let result = production_table(p);
+///
+/// assert_eq!(result, "0: A -> B C\n1: B -> b");
+/// ```
+pub fn production_table<I>(productions: I) -> String
+where
+    I: IntoIterator<Item = Production>,
+{
+    productions
+        .into_iter()
+        .enumerate()
+        .map(|(i, p)| format!("{}: {}", i, p))
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
     use crate::symbol::symbol;
+    use std::convert::TryFrom;
     use std::fmt::Write;
 
     // struct.Production
 
     #[test]
-    pub fn from_string() {
+    fn from_string() {
         let p_check = vec![
             Production {
                 lhs: vec![symbol("S")],
@@ -472,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_string_error() {
+    fn from_string_error() {
         let error = TokenizerError::ProductionNoRhs("S".to_string());
         let result = Production::from_string("S ->\n -> a | B\nB -> b");
 
@@ -489,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_iter() {
+    fn from_iter() {
         let p_check = vec![
             Production {
                 lhs: vec![symbol("S")],
@@ -517,7 +602,7 @@ mod tests {
     }
 
     #[test]
-    pub fn such_that() {
+    fn such_that() {
         let filter = Production::such_that(ProductionPredicate::LhsEquals(vec![symbol("T")]));
         let productions = Production::from_string("S -> A | B\nA -> a\nT -> t\nB -> B").unwrap();
 
@@ -537,7 +622,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new() {
+    fn new() {
         let p_check = Production {
             lhs: vec![symbol("S")],
             rhs: vec![symbol("A"), symbol("B")],
@@ -551,7 +636,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_empty_side_lhs() {
+    fn new_empty_side_lhs() {
         let iter = vec![symbol("S")];
 
         let result = Production::new(vec![], iter);
@@ -568,7 +653,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_empty_side_rhs() {
+    fn new_empty_side_rhs() {
         let iter = vec![symbol("S")];
 
         let result = Production::new(iter, vec![]);
@@ -585,7 +670,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string() {
+    fn new_from_string() {
         let p_check = Production {
             lhs: vec![symbol("S")],
             rhs: vec![symbol("A"), symbol("B")],
@@ -599,7 +684,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string_error_lhs() {
+    fn new_from_string_error_lhs() {
         let error = SymbolError::InvalidSymbol("\n".to_string());
         let result = Production::new_from_string(vec!["\n"], vec!["A", "B"]);
 
@@ -616,7 +701,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string_error_rhs() {
+    fn new_from_string_error_rhs() {
         let error = SymbolError::InvalidSymbol("\n".to_string());
         let result = Production::new_from_string(vec!["S"], vec!["\n"]);
 
@@ -640,6 +725,47 @@ mod tests {
         let result = write!(buf, "{}", p);
         assert!(result.is_ok());
         assert_eq!(buf, "A -> B C")
+    }
+
+    #[test]
+    fn production_try_from() {
+        let result = Production::try_from("A -> B");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn production_try_from_multiple() {
+        let string = "A -> B\nA -> C";
+        let result = Production::try_from(string);
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::FormatError(TokenizerError::ProductionMultiple(string.to_string()))
+        );
+    }
+
+    #[test]
+    fn production_try_from_error() {
+        let string = "A -> B -> C";
+        let result = Production::try_from(string);
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::FormatError(TokenizerError::ProductionMultipleOneLine(0))
+        );
+    }
+
+    #[test]
+    fn production_try_from_no_productions() {
+        let result = Production::try_from("");
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            ProductionError::FormatError(TokenizerError::ProductionNoSeparator("".to_string()))
+        );
     }
 
     // enum.ProductionError
@@ -691,10 +817,28 @@ mod tests {
         )
     }
 
+    #[test]
+    fn production_error_source() {
+        assert!(
+            ProductionError::FormatError(TokenizerError::ProductionNoLhs)
+                .source()
+                .is_some()
+        );
+        assert!(ProductionError::SymbolError(SymbolError::EmptySymbol)
+            .source()
+            .is_some());
+    }
+
+    #[test]
+    fn production_error_source_none() {
+        assert!(ProductionError::NoLhs.source().is_none());
+        assert!(ProductionError::NoRhs.source().is_none());
+    }
+
     // enum.ProductionPredicate
 
     #[test]
-    pub fn predicate_lhs_equals() {
+    fn predicate_lhs_equals() {
         let predicate = ProductionPredicate::LhsEquals(vec![symbol("T")]);
 
         assert!(
@@ -714,7 +858,7 @@ mod tests {
     }
 
     #[test]
-    pub fn predicate_rhs_equals() {
+    fn predicate_rhs_equals() {
         let predicate = ProductionPredicate::RhsEquals(vec![symbol("T")]);
 
         assert!(
@@ -734,7 +878,7 @@ mod tests {
     }
 
     #[test]
-    pub fn predicate_rhs_length_equals() {
+    fn predicate_rhs_length_equals() {
         let predicate = ProductionPredicate::RhsLengthEquals(2);
 
         assert!(
@@ -754,7 +898,7 @@ mod tests {
     }
 
     #[test]
-    pub fn predicate_rhs_is_suffix_of() {
+    fn predicate_rhs_is_suffix_of() {
         let predicate = ProductionPredicate::RhsIsSuffixOf(vec![symbol("T2"), symbol("T3")]);
 
         assert!(
@@ -773,10 +917,58 @@ mod tests {
         );
     }
 
+    #[test]
+    fn production_predicate_display_lhs_equals() {
+        let mut buf = String::new();
+
+        let result = write!(
+            buf,
+            "{}",
+            ProductionPredicate::LhsEquals(vec![symbol("A"), symbol("B")])
+        );
+        assert!(result.is_ok());
+        assert_eq!(buf, format!("ProductionPredicate: lhs == {}", "A B"))
+    }
+
+    #[test]
+    fn production_predicate_display_rhs_equals() {
+        let mut buf = String::new();
+
+        let result = write!(
+            buf,
+            "{}",
+            ProductionPredicate::RhsEquals(vec![symbol("A"), symbol("B")])
+        );
+        assert!(result.is_ok());
+        assert_eq!(buf, format!("ProductionPredicate: rhs == {}", "A B"))
+    }
+
+    #[test]
+    fn production_predicate_display_rhs_is_suffix_of() {
+        let mut buf = String::new();
+
+        let result = write!(
+            buf,
+            "{}",
+            ProductionPredicate::RhsIsSuffixOf(vec![symbol("A"), symbol("B")])
+        );
+        assert!(result.is_ok());
+        assert_eq!(buf, format!("ProductionPredicate: rhs suffix == {}", "A B"))
+    }
+
+    #[test]
+    fn production_predicate_display_rhs_length_equals() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", ProductionPredicate::RhsLengthEquals(2));
+        assert!(result.is_ok());
+        assert_eq!(buf, format!("ProductionPredicate: rhs length == {}", 2))
+    }
+
     // mod.production
 
     #[test]
-    pub fn production() {
+    fn production() {
         let p_check = Production {
             lhs: vec![symbol("S")],
             rhs: vec![symbol("A"), symbol("B")],
@@ -790,7 +982,7 @@ mod tests {
     }
 
     #[test]
-    pub fn productions() {
+    fn productions() {
         let p_check = vec![
             Production {
                 lhs: vec![symbol("S")],
@@ -807,5 +999,18 @@ mod tests {
             p_check,
             "Created production rules are not those expected"
         );
+    }
+
+    #[test]
+    fn production_table() {
+        let p = super::productions(
+            "
+            A -> B C
+            B -> b
+        ",
+        );
+        let result = super::production_table(p);
+
+        assert_eq!(result, "0: A -> B C\n1: B -> b");
     }
 }

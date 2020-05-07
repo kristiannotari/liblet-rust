@@ -7,14 +7,15 @@
 //!
 //! It can be easily constructed from `&str`s or collections of [Symbol](../symbol/struct.Symbol.html)s and [Production](../production/struct.Production.html)s.
 
-use crate::production::{Production, ProductionError};
-use crate::symbol::{Symbol, SymbolError};
+use crate::production::{production_table, Production, ProductionError};
+use crate::symbol::{sentential_form, Symbol, SymbolError};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum GrammarError {
     /// Error returned if any of the given non terminals is an invalid non terminal symbol.
     WrongNonTerminals,
@@ -74,7 +75,15 @@ impl fmt::Display for GrammarError {
     }
 }
 
-impl Error for GrammarError {}
+impl Error for GrammarError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            GrammarError::SymbolError(e) => Some(e),
+            GrammarError::ProductionError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 impl std::convert::From<ProductionError> for GrammarError {
     fn from(e: ProductionError) -> Self {
@@ -95,12 +104,33 @@ impl std::convert::From<ProductionError> for GrammarError {
 /// The s (start symbol) element will be the left hand side of the first production encountered, which has to be a 1 symbol long length.
 /// For further details about the formatting of the raw string, you can have a look at how
 /// to specify productions from a raw string in the [Production](../production/struct.Production.html) documentation.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Grammar {
     n: HashSet<Symbol>,
     t: HashSet<Symbol>,
     p: Vec<Production>,
     s: Symbol,
+}
+
+impl fmt::Display for Grammar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "n: {}\nt: {}\np:\n{}\ns: {}",
+            sentential_form(self.n.clone()),
+            sentential_form(self.t.clone()),
+            production_table(self.p.clone()),
+            self.s
+        )
+    }
+}
+
+impl std::convert::TryFrom<&str> for Grammar {
+    type Error = GrammarError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Grammar::from_string(value)
+    }
 }
 
 impl Grammar {
@@ -705,12 +735,13 @@ mod tests {
     use crate::production::production;
     use crate::symbol::symbol;
     use crate::tokenizer::TokenizerError;
+    use std::convert::TryFrom;
     use std::fmt::Write;
 
     // struct.Grammar
 
     #[test]
-    pub fn n() {
+    fn n() {
         let g = super::grammar("S -> A");
 
         assert_eq!(
@@ -723,7 +754,7 @@ mod tests {
     }
 
     #[test]
-    pub fn t() {
+    fn t() {
         let g = super::grammar("S -> a");
 
         assert_eq!(
@@ -734,7 +765,7 @@ mod tests {
     }
 
     #[test]
-    pub fn p() {
+    fn p() {
         let g = super::grammar("S -> A\nA -> a");
 
         assert_eq!(
@@ -745,14 +776,14 @@ mod tests {
     }
 
     #[test]
-    pub fn s() {
+    fn s() {
         let g = super::grammar("S -> A");
 
         assert_eq!(g.s(), symbol("S"), "Grammar returned start symbol is wrong");
     }
 
     #[test]
-    pub fn from_string() {
+    fn from_string() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A"), symbol("B")]
             .into_iter()
@@ -782,7 +813,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_string_no_rhs() {
+    fn from_string_no_rhs() {
         let result = Grammar::from_string("S ->\n -> a | B\nB -> b");
 
         assert!(result.is_err());
@@ -797,7 +828,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_string_no_start_symbol_no_production() {
+    fn from_string_no_start_symbol_no_production() {
         let result = Grammar::from_string("");
 
         assert!(result.is_err());
@@ -810,7 +841,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_string_no_lhs() {
+    fn from_string_no_lhs() {
         let result = Grammar::from_string(" -> B");
 
         assert!(result.is_err());
@@ -825,7 +856,7 @@ mod tests {
     }
 
     #[test]
-    pub fn from_string_multiple_start_symbols() {
+    fn from_string_multiple_start_symbols() {
         let result = Grammar::from_string("A B -> C");
 
         assert!(result.is_err());
@@ -838,7 +869,7 @@ mod tests {
     }
 
     #[test]
-    pub fn alternatives() {
+    fn alternatives() {
         let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
         let a_check = vec![vec![symbol("a")], vec![symbol("B")]];
 
@@ -850,7 +881,7 @@ mod tests {
     }
 
     #[test]
-    pub fn alternatives_empty() {
+    fn alternatives_empty() {
         let g = Grammar::from_string("S -> A B\nA -> a | B\nB -> b").unwrap();
 
         assert!(
@@ -860,7 +891,7 @@ mod tests {
     }
 
     #[test]
-    pub fn restrict_to() {
+    fn restrict_to() {
         let g_restricted = Grammar::from_string("S -> A\nA -> a | B\nB -> b")
             .unwrap()
             .restrict_to(vec![symbol("S"), symbol("A"), symbol("a")])
@@ -890,7 +921,7 @@ mod tests {
     }
 
     #[test]
-    pub fn restrict_to_panic_start_symbol() {
+    fn restrict_to_panic_start_symbol() {
         let result = Grammar::from_string("S -> A\nA -> a | B\nB -> b")
             .unwrap()
             .restrict_to(vec![symbol("A"), symbol("a")]);
@@ -909,7 +940,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new() {
+    fn new() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
         let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
@@ -941,7 +972,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_wrong_start_symbol() {
+    fn new_wrong_start_symbol() {
         let s_check: Symbol = symbol("s");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
         let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
@@ -966,7 +997,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_wrong_non_terminals() {
+    fn new_wrong_non_terminals() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("s"), symbol("A")].into_iter().collect();
         let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
@@ -991,7 +1022,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_wrong_terminals() {
+    fn new_wrong_terminals() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
         let t_check: HashSet<Symbol> = vec![symbol("S")].into_iter().collect();
@@ -1016,7 +1047,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string() {
+    fn new_from_string() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
         let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
@@ -1043,7 +1074,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string_wrong_start_symbol() {
+    fn new_from_string_wrong_start_symbol() {
         let start_symbol = "\n";
         let result = Grammar::new_from_string(
             vec!["S", "A"],
@@ -1065,7 +1096,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string_wrong_non_terminal_symbols() {
+    fn new_from_string_wrong_non_terminal_symbols() {
         let result =
             Grammar::new_from_string(vec!["\n", "A"], vec!["a"], vec!["S -> A\nA -> a"], "S");
 
@@ -1082,7 +1113,7 @@ mod tests {
     }
 
     #[test]
-    pub fn new_from_string_wrong_terminal_symbols() {
+    fn new_from_string_wrong_terminal_symbols() {
         let result =
             Grammar::new_from_string(vec!["S", "A"], vec!["A"], vec!["S -> A\nA -> a"], "S");
 
@@ -1099,7 +1130,7 @@ mod tests {
     }
 
     #[test]
-    pub fn reachable() {
+    fn reachable() {
         let g: Grammar = super::grammar(
             "
             S -> A | B
@@ -1126,7 +1157,7 @@ mod tests {
     }
 
     #[test]
-    pub fn reachable_from() {
+    fn reachable_from() {
         let g: Grammar = super::grammar(
             "
             S -> A | B
@@ -1145,7 +1176,7 @@ mod tests {
     }
 
     #[test]
-    pub fn productives() {
+    fn productives() {
         let g: Grammar = super::grammar(
             "
             S -> A | B
@@ -1173,7 +1204,7 @@ mod tests {
     }
 
     #[test]
-    pub fn productives_from() {
+    fn productives_from() {
         let g: Grammar = super::grammar(
             "
             S -> A | B
@@ -1193,9 +1224,30 @@ mod tests {
         );
     }
 
-    // mod.grammar
     #[test]
-    pub fn grammar() {
+    fn grammar_display() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", super::grammar("A -> a\nB -> b"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn grammar_try_from() {
+        let result = Grammar::try_from("A -> a");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn grammar_try_from_error() {
+        let result = Grammar::try_from(" -> a");
+        assert!(result.is_err());
+    }
+
+    // mod.grammar
+
+    #[test]
+    fn grammar() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A"), symbol("B")]
             .into_iter()
@@ -1225,7 +1277,7 @@ mod tests {
     }
 
     #[test]
-    pub fn grammar_quadruple() {
+    fn grammar_quadruple() {
         let s_check: Symbol = symbol("S");
         let n_check: HashSet<Symbol> = vec![symbol("S"), symbol("A")].into_iter().collect();
         let t_check: HashSet<Symbol> = vec![symbol("a")].into_iter().collect();
@@ -1351,5 +1403,28 @@ mod tests {
             buf,
             format!("GrammarError: production error encountered = {}", e)
         )
+    }
+
+    #[test]
+    fn grammar_error_source() {
+        assert!(GrammarError::ProductionError(ProductionError::NoLhs)
+            .source()
+            .is_some());
+        assert!(GrammarError::SymbolError(SymbolError::EmptySymbol)
+            .source()
+            .is_some());
+    }
+
+    #[test]
+    fn grammar_error_source_none() {
+        assert!(GrammarError::MultipleStartSymbols(production("A", "B"))
+            .source()
+            .is_none());
+        assert!(GrammarError::NoStartSymbol(None).source().is_none());
+        assert!(GrammarError::WrongNonTerminals.source().is_none());
+        assert!(GrammarError::WrongTerminals.source().is_none());
+        assert!(GrammarError::WrongStartSymbol(symbol("a"))
+            .source()
+            .is_none());
     }
 }

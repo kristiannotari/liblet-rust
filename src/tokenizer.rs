@@ -4,12 +4,13 @@ use std::fmt;
 const PRODUCTION_SEP: &str = "->";
 const PRODUCTION_OR: &str = "|";
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum TokenizerError {
     ProductionNoLhs,
     ProductionNoRhs(String),
     ProductionNoSeparator(String),
     ProductionMultipleOneLine(usize),
+    ProductionMultiple(String),
 }
 
 impl fmt::Display for TokenizerError {
@@ -34,6 +35,11 @@ impl fmt::Display for TokenizerError {
                 f,
                 "TokenizerError: Too many production rule on the same line on line {}",
                 index
+            ),
+            TokenizerError::ProductionMultiple(string) => write!(
+                f,
+                "TokenizerError: Too many production rules found in \"{}\", expected only 1",
+                string
             ),
         }
     }
@@ -308,6 +314,26 @@ mod tests {
             format!(
                 "TokenizerError: Too many production rule on the same line on line {}",
                 index
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_production_multiple() {
+        let mut buf = String::new();
+        let string = "A -> B -> C";
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::ProductionMultiple(string.to_string())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: Too many production rules found in \"{}\", expected only 1",
+                string
             )
         )
     }
