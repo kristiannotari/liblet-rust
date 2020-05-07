@@ -16,7 +16,7 @@ If you want to contribute or correct any errors, please do so opening a issues o
 
 ## Ported features
 
-`v0.1.0`
+`v0.0.0`
 
 More info available at the docs (*coming soon*).
 
