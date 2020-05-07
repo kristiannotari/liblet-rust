@@ -3,7 +3,6 @@
 ![Crates.io](https://img.shields.io/crates/v/liblet)
 [![Build Status](https://travis-ci.org/kristiannotari/liblet-rust.png?branch=master)](https://travis-ci.org/kristiannotari/liblet-rust)
 [![codecov](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master/graph/badge.svg)](https://codecov.io/gh/kristiannotari/liblet-rust)
-![GitHub](https://img.shields.io/github/license/kristiannotari/liblet-rust)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
 
 > coverage disclaimer: percentage of code coverage is not reliable as of now, due to some issues with the tool used (cargo tarpaulin). If you have any advices, feel free to contact me.
