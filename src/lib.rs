@@ -71,3 +71,17 @@ pub mod derivation;
 pub mod grammar;
 pub mod production;
 pub mod symbol;
+
+pub use self::derivation::Derivation;
+pub use self::derivation::DerivationError;
+pub use self::derivation::DerivationStep;
+
+pub use self::grammar::Grammar;
+pub use self::grammar::GrammarError;
+
+pub use self::production::Production;
+pub use self::production::ProductionError;
+pub use self::production::ProductionPredicate;
+
+pub use self::symbol::Symbol;
+pub use self::symbol::SymbolError;
