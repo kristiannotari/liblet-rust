@@ -1,11 +1,20 @@
 [package]
 name = "liblet"
 version = "0.1.0"
+description = "Library for learning about formal languages and grammars"
 authors = ["Kristian Notari <kristiannotari@icloud.com>"]
 edition = "2018"
-license = "MIT"
-license-file = "./LICENSE.md"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kristiannotari/liblet-rust"
+readme = "README.md"
+keywords = ["formal-languages", "languages", "grammars", "derivations", "learn"]
+categories = ["data-structures", "simulation", "visualization"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+itertools = "0.9.0"
+serde = { version = "1.0.106", features = ["derive"] }
+
+[dev-dependencies]
+version-sync = "0.9.0"
