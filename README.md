@@ -1,5 +1,6 @@
 # liblet-rust
 
+![Crates.io](https://img.shields.io/crates/v/liblet)
 [![Build Status](https://travis-ci.org/kristiannotari/liblet-rust.png?branch=master)](https://travis-ci.org/kristiannotari/liblet-rust)
 [![codecov](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master/graph/badge.svg)](https://codecov.io/gh/kristiannotari/liblet-rust)
 ![GitHub](https://img.shields.io/github/license/kristiannotari/liblet-rust)
