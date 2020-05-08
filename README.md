@@ -1,7 +1,7 @@
 # liblet-rust
 
 ![Crates.io](https://img.shields.io/crates/v/liblet)
-[![Build Status](https://travis-ci.org/kristiannotari/liblet-rust.png?branch=master)](https://travis-ci.org/kristiannotari/liblet-rust)
+![Travis (.org) branch](https://img.shields.io/travis/kristiannotari/liblet-rust/master)
 [![codecov](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master/graph/badge.svg)](https://codecov.io/gh/kristiannotari/liblet-rust)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/kristiannotari/liblet-rust/issues)
 
@@ -10,7 +10,7 @@
 Porting project for the [liblet library](https://github.com/let-unimi/liblet) of the University of Milan course "Linguaggi e Traduttori" (Languages and Translators) in Rust.
 
 A generic and _possibly_ updated roadmap/to-do list is available in this repo project.
-If you want to contribute or correct any errors, please do so opening a issues or creating pull requests.
+If you want to contribute or correct any errors, please do so opening issues or creating pull requests.
 
 This is also a learning project, used to better comprehend both the course topics and the rust programming language.
 
@@ -31,7 +31,7 @@ More info available at the [docs](https://docs.rs/liblet/0.1.0).
 - [ ] rich display (not planned yet)
 - [ ] utilities (not planned yet)
 
-> Notice that this project don't make any difference between grammar types at the moment. In fact, you won't find parameters like "context_free" flags for switching behaviour depending on grammar type, because there's no such equivalent switch in implementation planned for this library at the moment. This library implementation ignores the grammar type concepts, at least at the moment, for those features which don't need a strict grammar type level (eg. grammar creation, grammar restrict_to function, etc.).
+> Notice that this project doesn't make any difference between grammar types at the moment. In fact, you won't find parameters like "context_free" flags for switching behaviour depending on grammar type, because there's no such equivalent switch in implementation planned for this library at the moment. This library implementation ignores the grammar type concepts, at least at the moment, for those features which don't need a strict grammar type level (eg. grammar creation, grammar restrict_to function, etc.).
 
 ## Examples
 
