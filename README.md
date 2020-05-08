@@ -18,7 +18,7 @@ This is also a learning project, used to better comprehend both the course topic
 
 More info available at the [docs](https://docs.rs/liblet/0.1.0).
 
-> Following the official liblet [documentation](https://liblet.readthedocs.io/en/v1.1.0-alpha/api.html#liblet.grammar.Grammar.restrict_to).
+> Following the official liblet [documentation](https://liblet.readthedocs.io).
 
 - [x] symbol (new)
 - [x] production
