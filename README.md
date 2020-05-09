@@ -1,8 +1,8 @@
 # liblet-rust
 
 ![Crates.io](https://img.shields.io/crates/v/liblet)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/kristiannotari/liblet-rust/build)
-![Codecov branch](https://img.shields.io/codecov/c/github/kristiannotari/liblet-rust/master)
+[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/kristiannotari/liblet-rust/build/master)](https://github.com/kristiannotari/liblet-rust/actions?query=workflow%3Abuild+branch%3Amaster)
+[![Codecov branch](https://img.shields.io/codecov/c/github/kristiannotari/liblet-rust/master)](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/kristiannotari/liblet-rust/issues)
 
 > coverage disclaimer: percentage of code coverage is not reliable as of now, due to some issues with the tool used (cargo tarpaulin). If you have any advices, feel free to contact me.
