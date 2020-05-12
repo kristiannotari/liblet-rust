@@ -1,6 +1,6 @@
 [package]
 name = "liblet"
-version = "0.1.0"
+version = "0.1.1"
 description = "Library for learning about formal languages and grammars"
 authors = ["Kristian Notari <kristiannotari@icloud.com>"]
 edition = "2018"
