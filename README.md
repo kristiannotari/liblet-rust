@@ -16,6 +16,8 @@ This is also a learning project, used to better comprehend both the course topic
 
 ## Features
 
+[![changelog](https://img.shields.io/badge/changelog-see-lightgrey)](https://github.com/kristiannotari/liblet-rust/blob/master/CHANGELOG.md)
+
 More info available at the [docs](https://docs.rs/liblet/0.1.0).
 
 > Following the official liblet [documentation](https://liblet.readthedocs.io).
