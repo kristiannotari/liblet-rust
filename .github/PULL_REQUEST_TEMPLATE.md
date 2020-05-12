@@ -1,6 +1,6 @@
 # \<PR name\>
 
-Fixes #
+Closes #
 
 ## Purpose
 

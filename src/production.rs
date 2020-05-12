@@ -10,7 +10,6 @@
 use crate::symbol::{sentential_form, Symbol, SymbolError};
 use crate::tokenizer;
 use crate::tokenizer::TokenizerError;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
@@ -256,20 +255,16 @@ impl Production {
     where
         I: IntoIterator<Item = &'a str>,
     {
-        let lhs =
-            lhs.into_iter()
-                .map(|s: &str| Symbol::new(s))
-                .fold_results(Vec::new(), |mut acc, x| {
-                    acc.push(x);
-                    acc
-                });
-        let rhs =
-            rhs.into_iter()
-                .map(|s: &str| Symbol::new(s))
-                .fold_results(Vec::new(), |mut acc, x| {
-                    acc.push(x);
-                    acc
-                });
+        let lhs = lhs.into_iter().try_fold(Vec::new(), |mut acc, s| {
+            let s = Symbol::new(s)?;
+            acc.push(s);
+            Ok(acc)
+        });
+        let rhs = rhs.into_iter().try_fold(Vec::new(), |mut acc, s| {
+            let s = Symbol::new(s)?;
+            acc.push(s);
+            Ok(acc)
+        });
 
         match (lhs, rhs) {
             (Ok(lhs), Ok(rhs)) => Production::new(lhs, rhs),
@@ -360,15 +355,13 @@ impl Production {
     pub fn from_string(string: &str) -> Result<Vec<Production>, ProductionError> {
         tokenizer::productions_from_string(string)?
             .iter()
-            .map(|p| {
-                Production::new_from_string::<Vec<&str>>(
+            .try_fold(Vec::new(), |mut acc, p| {
+                let p = Production::new_from_string::<Vec<&str>>(
                     p.0.iter().map(String::as_str).collect(),
                     p.1.iter().map(String::as_str).collect(),
-                )
-            })
-            .fold_results(Vec::new(), |mut acc, p| {
+                )?;
                 acc.push(p);
-                acc
+                Ok(acc)
             })
     }
 
