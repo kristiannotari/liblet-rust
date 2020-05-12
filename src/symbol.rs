@@ -6,7 +6,6 @@
 //! It can be easily constructed from `&str`s.
 
 use crate::tokenizer;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
@@ -260,10 +259,10 @@ impl Symbol {
     pub fn from_string(string: &str) -> Result<Vec<Symbol>, SymbolError> {
         tokenizer::symbols_from_string(string)
             .iter()
-            .map(|s| Symbol::new(s))
-            .fold_results(Vec::new(), |mut acc, s| {
+            .try_fold(Vec::new(), |mut acc, s| {
+                let s = Symbol::new(s)?;
                 acc.push(s);
-                acc
+                Ok(acc)
             })
     }
 
