@@ -9,7 +9,6 @@
 
 use crate::production::{production_table, Production, ProductionError};
 use crate::symbol::{sentential_form, Symbol, SymbolError};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
@@ -219,19 +218,17 @@ impl Grammar {
     where
         I: IntoIterator<Item = &'a str>,
     {
-        let n = n
-            .into_iter()
-            .map(|s| Symbol::new(s))
-            .fold_results(HashSet::new(), |mut acc, x| {
-                acc.insert(x);
-                acc
+        let n: Result<HashSet<Symbol>, SymbolError> =
+            n.into_iter().try_fold(HashSet::new(), |mut acc, s| {
+                let s = Symbol::new(s)?;
+                acc.insert(s);
+                Ok(acc)
             });
-        let t = t
-            .into_iter()
-            .map(|s| Symbol::new(s))
-            .fold_results(HashSet::new(), |mut acc, x| {
-                acc.insert(x);
-                acc
+        let t: Result<HashSet<Symbol>, SymbolError> =
+            t.into_iter().try_fold(HashSet::new(), |mut acc, s| {
+                let s = Symbol::new(s)?;
+                acc.insert(s);
+                Ok(acc)
             });
 
         let p = Production::from_iter(p);

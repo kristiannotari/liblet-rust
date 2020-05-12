@@ -13,7 +13,6 @@ categories = ["data-structures", "simulation", "visualization"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-itertools = "0.9.0"
 serde = { version = "1.0.106", features = ["derive"] }
 
 [dev-dependencies]
