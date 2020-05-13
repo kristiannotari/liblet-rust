@@ -3,14 +3,32 @@ use std::fmt;
 
 const PRODUCTION_SEP: &str = "->";
 const PRODUCTION_OR: &str = "|";
+const TRANSITION_SEP: &str = "->";
 
+/// Errors resulting from tokenizing strings.
+///
+/// When parsing custom strings, invalid or bad formatted strings can generate
+/// tokenizer errors, according to which representation is expected.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum TokenizerError {
+    /// Error for productions which doesn't have a left hand side
     ProductionNoLhs,
+    /// Error for productions which doesn't have a right hand side
     ProductionNoRhs(String),
+    /// Error for productions which doesn't have the production separator
+    /// (see [Production](production/index.html) module for further details)
     ProductionNoSeparator(String),
+    /// Error for having multiple productions on the same row/line
     ProductionMultipleOneLine(usize),
+    /// Error for having multiple productions when expecting only one in the
+    /// whole given string
     ProductionMultiple(String),
+    /// Error for having no "to" part in the transition
+    TransitionNoTo(String),
+    /// Error for having no "label" part in the transition
+    TransitionNoLabel(String),
+    /// Error for having no "from" part in the transition
+    TransitionMultipleOneLine(usize),
 }
 
 impl fmt::Display for TokenizerError {
@@ -40,6 +58,21 @@ impl fmt::Display for TokenizerError {
                 f,
                 "TokenizerError: Too many production rules found in \"{}\", expected only 1",
                 string
+            ),
+            TokenizerError::TransitionNoTo(string) => write!(
+                f,
+                "TokenizerError: no \"to\" part in transition \"{}\"",
+                string
+            ),
+            TokenizerError::TransitionNoLabel(string) => write!(
+                f,
+                "TokenizerError: no \"label\" part in transition \"{}\"",
+                string
+            ),
+            TokenizerError::TransitionMultipleOneLine(index) => write!(
+                f,
+                "TokenizerError: too many separator found for transition on the same line on line {}",
+                index
             ),
         }
     }
@@ -92,6 +125,33 @@ pub fn symbols_from_string(string: &str) -> Vec<String> {
         .split_whitespace()
         .map(|s| s.to_string())
         .collect()
+}
+
+pub fn transitions_from_string(
+    string: &str,
+) -> Result<Vec<(Vec<String>, String, Vec<String>)>, TokenizerError> {
+    let mut transitions = Vec::new();
+
+    for (i, transition) in string.trim().lines().map(|s| s.trim()).enumerate() {
+        let mut parts = transition.split(TRANSITION_SEP);
+        println!("PRINTING: {}", transition);
+        match (parts.next(), parts.next(), parts.next(), parts.next()) {
+            (Some(from), Some(label), Some(to), None) => transitions.push((
+                symbols_from_string(from),
+                label.trim().to_string(),
+                symbols_from_string(to),
+            )),
+            (Some(_), Some(_), None, _) => {
+                return Err(TokenizerError::TransitionNoTo(transition.to_string()))
+            }
+            (Some(_), None, _, _) => {
+                return Err(TokenizerError::TransitionNoLabel(transition.to_string()))
+            }
+            (_, _, _, _) => return Err(TokenizerError::TransitionMultipleOneLine(i)),
+        }
+    }
+
+    Ok(transitions)
 }
 
 #[cfg(test)]
@@ -249,6 +309,102 @@ mod tests {
         assert_eq!(super::symbols_from_string("").len(), 0);
     }
 
+    #[test]
+    fn transitions_from_string() {
+        let expected_from = vec!["A1", "A2"];
+        let expected_label = "label".to_string();
+        let expected_to = vec!["B1", "B2"];
+        let result = super::transitions_from_string("A1 A2 -> label -> B1 B2");
+
+        assert!(
+            result.is_ok(),
+            "Tokenizing transitions should not return an error"
+        );
+        let transitions = result.unwrap();
+        assert_eq!(
+            transitions.len(),
+            1,
+            "Tokenized transitions are not the ones expected"
+        );
+        let (from, label, to) = transitions[0].clone();
+        assert_eq!(
+            from, expected_from,
+            "Tokenized transition from is not the one expected"
+        );
+        assert_eq!(
+            label, expected_label,
+            "Tokenized transition label is not the one expected"
+        );
+        assert_eq!(
+            to, expected_to,
+            "Tokenized transition to is not the one expected"
+        )
+    }
+
+    #[test]
+    fn transitions_from_string_no_to() {
+        let result = super::transitions_from_string("A -> B ");
+
+        assert!(
+            result.is_err(),
+            "Transitions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::TransitionNoTo("A -> B".to_string()),
+            "Transitions from test input returned the wrong error"
+        );
+    }
+
+    #[test]
+    fn transitions_from_string_no_to_no_label() {
+        let result = super::transitions_from_string("A -> ");
+
+        assert!(
+            result.is_err(),
+            "Transitions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::TransitionNoTo("A ->".to_string()),
+            "Transitions from test input returned the wrong error"
+        );
+    }
+
+    #[test]
+    fn transitions_from_string_no_label() {
+        let result = super::transitions_from_string("A ");
+
+        assert!(
+            result.is_err(),
+            "Transitions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::TransitionNoLabel("A".to_string()),
+            "Transitions from test input returned the wrong error"
+        );
+    }
+
+    #[test]
+    fn transitions_from_string_multiple_one_line() {
+        let result = super::transitions_from_string("A -> B -> C -> ");
+
+        assert!(
+            result.is_err(),
+            "Transitions from test input should return an Err result"
+        );
+        let e = result.unwrap_err();
+        assert_eq!(
+            e,
+            TokenizerError::TransitionMultipleOneLine(0),
+            "Transitions from test input returned the wrong error"
+        );
+    }
+
     // enum.TokenizerError
 
     #[test]
@@ -334,6 +490,62 @@ mod tests {
             format!(
                 "TokenizerError: Too many production rules found in \"{}\", expected only 1",
                 string
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_transition_no_to() {
+        let mut buf = String::new();
+        let string = "A -> B";
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::TransitionNoTo(string.to_string())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: no \"to\" part in transition \"{}\"",
+                string
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_transition_no_label() {
+        let mut buf = String::new();
+        let string = "A";
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::TransitionNoLabel(string.to_string())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: no \"label\" part in transition \"{}\"",
+                string
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_transition_no_separator() {
+        let mut buf = String::new();
+        let index = 0;
+
+        let result = write!(buf, "{}", TokenizerError::TransitionMultipleOneLine(index));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: too many separator found for transition on the same line on line {}",
+                index
             )
         )
     }

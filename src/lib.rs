@@ -67,6 +67,7 @@
 
 mod tokenizer;
 
+pub mod automaton;
 pub mod derivation;
 pub mod grammar;
 pub mod production;
@@ -85,3 +86,5 @@ pub use self::production::ProductionPredicate;
 
 pub use self::symbol::Symbol;
 pub use self::symbol::SymbolError;
+
+pub use self::tokenizer::TokenizerError;
