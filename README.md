@@ -1,7 +1,7 @@
 # liblet-rust
 
 [![Crates.io](https://img.shields.io/crates/v/liblet)](https://crates.io/crates/liblet)
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/kristiannotari/liblet-rust/build/master)](https://github.com/kristiannotari/liblet-rust/actions?query=workflow%3Abuild+branch%3Amaster)
+[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/kristiannotari/liblet-rust/build/v0.1.1)](https://github.com/kristiannotari/liblet-rust/actions?query=workflow%3Abuild+branch%3Av0.1.1)
 [![Codecov branch](https://img.shields.io/codecov/c/github/kristiannotari/liblet-rust/master)](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/kristiannotari/liblet-rust/issues)
 
