@@ -292,16 +292,22 @@ mod tests {
         assert_eq!(
             t.len(),
             1,
-            "Transitions from string are not long as expected"
+            "Transition from string are not long as expected"
         );
         assert_eq!(
             t[0].from(),
-            vec![symbol("A")].into_iter().collect::<HashSet<Symbol>>()
+            vec![symbol("A")].into_iter().collect::<HashSet<Symbol>>(),
+            "Transition from is not what expected"
         );
-        assert_eq!(t[0].label(), Some("label".to_string()));
+        assert_eq!(
+            t[0].label(),
+            Some("label".to_string()),
+            "Transition label is not what expected"
+        );
         assert_eq!(
             t[0].to(),
-            vec![symbol("B")].into_iter().collect::<HashSet<Symbol>>()
+            vec![symbol("B")].into_iter().collect::<HashSet<Symbol>>(),
+            "Transition to is not what expected"
         );
     }
 
@@ -407,5 +413,21 @@ mod tests {
             buf,
             format!("TransitionError: format error encountered = {}", error)
         )
+    }
+
+    #[test]
+    fn transition_error_source() {
+        assert!(
+            TransitionError::FormatError(TokenizerError::TransitionNoLabel(String::new()))
+                .source()
+                .is_some(),
+            "Transition Error format error source should be some"
+        );
+        assert!(
+            TransitionError::SymbolError(SymbolError::EmptySymbol)
+                .source()
+                .is_some(),
+            "Transition Error symbol error source should be some"
+        );
     }
 }
