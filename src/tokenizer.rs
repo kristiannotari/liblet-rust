@@ -29,6 +29,13 @@ pub enum TokenizerError {
     TransitionNoLabel(String),
     /// Error for having no "from" part in the transition
     TransitionMultipleOneLine(usize),
+    /// Error for having too many transitions but expected one in the whole
+    /// given string
+    TransitionMultiple(String),
+    /// Error for having a given string not containing any transition but
+    /// at least one was expected (see [Transition](automaton/struct.Transition.html)
+    /// documentation for further details)
+    TransitionEmpty(String),
 }
 
 impl fmt::Display for TokenizerError {
@@ -73,6 +80,16 @@ impl fmt::Display for TokenizerError {
                 f,
                 "TokenizerError: too many separator found for transition on the same line on line {}",
                 index
+            ),
+            TokenizerError::TransitionMultiple(string) => write!(
+                f,
+                "TokenizerError: found too many transitions in the given input \"{}\" but 1 expected",
+                string
+            ),
+            TokenizerError::TransitionEmpty(string) => write!(
+                f,
+                "TokenizerError: expected at least one transition but zero found in the given input \"{}\"",
+                string
             ),
         }
     }
@@ -535,7 +552,7 @@ mod tests {
     }
 
     #[test]
-    fn tokenizer_error_display_transition_no_separator() {
+    fn tokenizer_error_display_transition_multiple_one_line() {
         let mut buf = String::new();
         let index = 0;
 
@@ -546,6 +563,46 @@ mod tests {
             format!(
                 "TokenizerError: too many separator found for transition on the same line on line {}",
                 index
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_transition_multiple() {
+        let mut buf = String::new();
+        let string = "A -> label -> B\nA -> label -> B";
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::TransitionMultiple(string.to_string())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: found too many transitions in the given input \"{}\" but 1 expected",
+                string
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_transition_no_separator() {
+        let mut buf = String::new();
+        let string = "\t";
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::TransitionEmpty(string.to_string())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: expected at least one transition but zero found in the given input \"{}\"",
+                string
             )
         )
     }

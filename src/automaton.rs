@@ -93,6 +93,28 @@ impl fmt::Display for Transition<Symbol> {
     }
 }
 
+impl std::convert::TryFrom<&str> for Transition<Symbol> {
+    type Error = TransitionError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let t = Transition::from_string(value)?;
+        let mut t_iter = t.iter();
+        if let Some(t) = t_iter.next() {
+            if t_iter.next().is_none() {
+                Ok(t.clone())
+            } else {
+                Err(TransitionError::FormatError(
+                    TokenizerError::TransitionMultiple(value.to_string()),
+                ))
+            }
+        } else {
+            Err(TransitionError::FormatError(
+                TokenizerError::TransitionEmpty(value.to_string()),
+            ))
+        }
+    }
+}
+
 impl<T> Transition<T>
 where
     T: Eq + std::hash::Hash + Clone,
@@ -227,10 +249,51 @@ impl Transition<Symbol> {
     }
 }
 
+/// Convenience method for creating a transition of symbols from a string.
+///
+/// It returns the transition directly, as opposed to the `Result` returned from
+/// the transition [from_string](struct.Transition.html#method.from_string) method.
+///
+/// # Panics
+/// Panics if converting the string to transition is not possible as specified in the
+/// transition [from_string](struct.Transition.html#method.from_string) method.
+///
+/// # Examples
+/// ```rust
+/// use liblet::automaton::transition;
+///
+/// let t = transition("A -> label -> B");
+/// ```
+pub fn transition(string: &str) -> Transition<Symbol> {
+    use std::convert::TryFrom;
+    Transition::<Symbol>::try_from(string).unwrap()
+}
+
+/// Convenience method for creating a collections of transitions from a string.
+///
+/// It returns the transition directly, as opposed to the `Result` returned from
+/// the transition [from_string](struct.Transition.html#method.from_string) method.
+///
+/// # Panics
+/// Panics if converting the string to transitions is not possible as specified in the
+/// transition [from_string](struct.Transition.html#method.from_string) method.
+///
+/// # Examples
+/// ```rust
+/// use liblet::automaton::transitions;
+///
+/// let t = transitions("A1 -> label1 -> B1\nA2 -> label2 -> B2");
+/// assert_eq!(t.len(), 2);
+/// ```
+pub fn transitions(string: &str) -> Vec<Transition<Symbol>> {
+    Transition::from_string(string).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::symbol::symbol;
+    use std::convert::TryFrom;
     use std::fmt::Write;
     use std::iter::FromIterator;
 
@@ -385,6 +448,44 @@ mod tests {
         );
     }
 
+    #[test]
+    fn transition_try_from() {
+        let t = Transition::<Symbol>::try_from("A -> label -> B");
+        assert!(t.is_ok(), "Transition try from should not return an error");
+    }
+
+    #[test]
+    fn transition_try_from_multiple() {
+        let string = "A -> label -> B\nA -> label -> B";
+        let t = Transition::<Symbol>::try_from(string);
+        assert!(t.is_err(), "Transition try from should return an error");
+        let e = t.unwrap_err();
+        assert_eq!(
+            e,
+            TransitionError::FormatError(TokenizerError::TransitionMultiple(string.to_string()),),
+            "Transition try from returned error is not the one expected"
+        )
+    }
+
+    #[test]
+    fn transition_try_from_empty() {
+        let string = "\t";
+        let t = Transition::<Symbol>::try_from(string);
+        assert!(t.is_err(), "Transition try from should return an error");
+        let e = t.unwrap_err();
+        assert_eq!(
+            e,
+            TransitionError::FormatError(TokenizerError::TransitionEmpty(string.to_string()),),
+            "Transition try from returned error is not the one expected"
+        )
+    }
+
+    #[test]
+    fn transition_try_from_error() {
+        let t = Transition::<Symbol>::try_from("A -> label");
+        assert!(t.is_err(), "Transition try from should return an error");
+    }
+
     /// enum.TransitionError
 
     #[test]
@@ -429,5 +530,30 @@ mod tests {
                 .is_some(),
             "Transition Error symbol error source should be some"
         );
+    }
+
+    /// mod.transition
+
+    #[test]
+    fn transition() {
+        super::transition("A -> label -> B");
+    }
+
+    #[test]
+    #[should_panic]
+    fn transition_error() {
+        super::transition("A -> label");
+    }
+
+    #[test]
+    fn transitions() {
+        let t = super::transitions("A1 -> label1 -> B1\nA2 -> label2 -> B2");
+        assert_eq!(t.len(), 2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn transitions_error() {
+        super::transitions("A -> label");
     }
 }
