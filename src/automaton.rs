@@ -68,13 +68,16 @@ impl std::convert::From<SymbolError> for TransitionError {
 /// States are defined as collections of [Symbol](../symbol/struct.Symbol.html)s.
 /// To define a transition between two symbols, simply use singleton collections.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct Transition {
-    from: HashSet<Symbol>,
+pub struct Transition<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    from: HashSet<T>,
     label: Option<String>,
-    to: HashSet<Symbol>,
+    to: HashSet<T>,
 }
 
-impl fmt::Display for Transition {
+impl fmt::Display for Transition<Symbol> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut from = self.from().into_iter().collect::<Vec<Symbol>>();
         let mut to = self.to().into_iter().collect::<Vec<Symbol>>();
@@ -90,7 +93,10 @@ impl fmt::Display for Transition {
     }
 }
 
-impl Transition {
+impl<T> Transition<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
     /// Constructor for a new transition.
     ///
     /// It takes the 3 fundamental details of a transition:
@@ -103,12 +109,12 @@ impl Transition {
     /// use liblet::automaton::Transition;
     /// use liblet::symbol::symbol;
     ///
-    /// // here we define a transition of the form {A} --"label"--> {B}
+    /// // here we define a transition of the form {A} --> "label" --> {B}
     /// let t = Transition::new(vec![symbol("A")], Some("label"), vec![symbol("B")]);
     /// ```
-    pub fn new<I>(from: I, label: Option<&str>, to: I) -> Transition
+    pub fn new<I>(from: I, label: Option<&str>, to: I) -> Transition<T>
     where
-        I: IntoIterator<Item = Symbol>,
+        I: IntoIterator<Item = T>,
     {
         Transition {
             from: from.into_iter().collect(),
@@ -131,7 +137,7 @@ impl Transition {
     /// assert_eq!(t.from(), HashSet::from_iter(vec![symbol("A")]));
     ///
     /// ```
-    pub fn from(&self) -> HashSet<Symbol> {
+    pub fn from(&self) -> HashSet<T> {
         self.from.clone()
     }
 
@@ -149,7 +155,7 @@ impl Transition {
     /// assert_eq!(t.to(), HashSet::from_iter(vec![symbol("B")]));
     ///
     /// ```
-    pub fn to(&self) -> HashSet<Symbol> {
+    pub fn to(&self) -> HashSet<T> {
         self.to.clone()
     }
 
@@ -168,7 +174,9 @@ impl Transition {
     pub fn label(&self) -> Option<String> {
         self.label.clone()
     }
+}
 
+impl Transition<Symbol> {
     /// Construct a new transition from a string.
     ///
     /// # Errors
@@ -179,12 +187,12 @@ impl Transition {
     /// use liblet::automaton::Transition;
     /// use liblet::symbol::symbol;
     ///
-    /// // here we define a transition of the form {A1,A2} --"label"--> {B1,B2}
+    /// // here we define a transition of the form {A1,A2} --> "label" --> {B1,B2}
     /// let t = Transition::from_string("A1 A2 -> label -> B1 B2");
     ///
     /// assert!(t.is_ok());
     /// ```
-    pub fn from_string(string: &str) -> Result<Vec<Transition>, TransitionError> {
+    pub fn from_string(string: &str) -> Result<Vec<Transition<Symbol>>, TransitionError> {
         let tokens = tokenizer::transitions_from_string(string)?;
 
         tokens
@@ -206,7 +214,7 @@ impl Transition {
                         Ok(acc)
                     },
                 )?;
-                let t: Transition;
+                let t: Transition<Symbol>;
                 if label.is_empty() {
                     t = Transition::new(from, None, to);
                 } else {
@@ -258,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    fn transition_display() {
+    fn transition_display_symbol() {
         let mut buf = String::new();
         let t = Transition::new(
             vec![symbol("A1"), symbol("A2")],
