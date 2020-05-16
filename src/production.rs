@@ -188,7 +188,7 @@ impl std::convert::TryFrom<&str> for Production {
             }
         } else {
             Err(ProductionError::FormatError(
-                TokenizerError::ProductionNoSeparator(value.to_string()),
+                TokenizerError::ProductionEmpty(value.to_string()),
             ))
         }
     }
@@ -757,7 +757,7 @@ mod tests {
         let e = result.unwrap_err();
         assert_eq!(
             e,
-            ProductionError::FormatError(TokenizerError::ProductionNoSeparator("".to_string()))
+            ProductionError::FormatError(TokenizerError::ProductionEmpty("".to_string()))
         );
     }
 
