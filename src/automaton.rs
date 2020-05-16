@@ -7,14 +7,10 @@ use crate::symbol::{sentential_form, Symbol, SymbolError};
 use crate::tokenizer;
 use crate::tokenizer::TokenizerError;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
-/// Errors resulting from tokenizing strings.
-///
-/// When parsing custom strings, invalid or bad formatted strings can generate
-/// tokenizer errors, according to which representation is expected.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum TransitionError {
     /// Error for failing to create transitions from something which is not a symbol
@@ -67,14 +63,14 @@ impl std::convert::From<SymbolError> for TransitionError {
 ///
 /// States are defined as collections of [Symbol](../symbol/struct.Symbol.html)s.
 /// To define a transition between two symbols, simply use singleton collections.
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct Transition<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Clone + Ord,
 {
-    from: HashSet<T>,
+    from: BTreeSet<T>,
     label: Option<String>,
-    to: HashSet<T>,
+    to: BTreeSet<T>,
 }
 
 impl fmt::Display for Transition<Symbol> {
@@ -117,7 +113,7 @@ impl std::convert::TryFrom<&str> for Transition<Symbol> {
 
 impl<T> Transition<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Clone + Ord,
 {
     /// Constructor for a new transition.
     ///
@@ -151,16 +147,15 @@ where
     /// ```rust
     /// use liblet::automaton::Transition;
     /// use liblet::symbol::symbol;
-    /// use std::collections::HashSet;
+    /// use std::collections::BTreeSet;
     /// use std::iter::FromIterator;
     ///
     /// let t = Transition::new(vec![symbol("A")], Some("label"), vec![symbol("B")]);
     ///
-    /// assert_eq!(t.from(), HashSet::from_iter(vec![symbol("A")]));
-    ///
+    /// assert_eq!(t.from(), BTreeSet::from_iter(vec![symbol("A")]));
     /// ```
-    pub fn from(&self) -> HashSet<T> {
-        self.from.clone()
+    pub fn from(&self) -> BTreeSet<T> {
+        self.from.clone().into_iter().collect()
     }
 
     /// Return the set of symbols which defines the to state of this transition.
@@ -169,15 +164,14 @@ where
     /// ```rust
     /// use liblet::automaton::Transition;
     /// use liblet::symbol::symbol;
-    /// use std::collections::HashSet;
+    /// use std::collections::BTreeSet;
     /// use std::iter::FromIterator;
     ///
     /// let t = Transition::new(vec![symbol("A")], Some("label"), vec![symbol("B")]);
     ///
-    /// assert_eq!(t.to(), HashSet::from_iter(vec![symbol("B")]));
-    ///
+    /// assert_eq!(t.to(), BTreeSet::from_iter(vec![symbol("B")]));
     /// ```
-    pub fn to(&self) -> HashSet<T> {
+    pub fn to(&self) -> BTreeSet<T> {
         self.to.clone()
     }
 
@@ -249,6 +243,312 @@ impl Transition<Symbol> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum AutomatonError {
+    /// Error for describing the attempt to create an automaton without any states.
+    NoStates,
+    /// A [TransitionError](enum.TransitionError.html) occurring during manipulation of automatons
+    TransitionError(TransitionError),
+}
+
+impl std::convert::From<TransitionError> for AutomatonError {
+    fn from(e: TransitionError) -> Self {
+        AutomatonError::TransitionError(e)
+    }
+}
+
+impl fmt::Display for AutomatonError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AutomatonError::NoStates => write!(
+                f,
+                "AutomatonError: impossible to create an automaton with no states",
+            ),
+            AutomatonError::TransitionError(e) => {
+                write!(f, "AutomatonError: transition error encountered = {}", e)
+            }
+        }
+    }
+}
+
+impl Error for AutomatonError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            AutomatonError::TransitionError(e) => Some(e),
+            AutomatonError::NoStates => None,
+        }
+    }
+}
+
+/// The main type of this module.
+///
+/// This type represents a nondeterministic finite automaton defined as:
+/// A = (N,T,transitions,q0,F) where N is the set of states, T is the set of transitions labels,
+/// q0 is the starting state and F is the set of final states.
+///
+/// The transitions are the ones defined in this same module: [Transition](struct.Transition.html)s.
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Automaton<T>
+where
+    T: Eq + Clone + Ord,
+{
+    transitions: BTreeSet<Transition<T>>,
+    q0: BTreeSet<T>,
+    f: BTreeSet<BTreeSet<T>>,
+}
+
+// impl<T> fmt::Display for Automaton<T>
+// where
+//     T: Eq + Clone + Ord,
+// {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(
+//             f,
+//             "n: {}\nt: {}\ntransitions: {}\nq0: {}\nf: {}",
+//             self.n(),
+//             self.t(),
+//             self.transitions,
+//             self.q0,
+//             self.f
+//         )
+//     }
+// }
+
+impl<T> Automaton<T>
+where
+    T: Eq + Clone + Ord,
+{
+    /// Creates a new automaton based on the transitions
+    /// and final states given.
+    ///
+    /// The starting state will be the "from" part of the first transition
+    /// given.
+    ///
+    /// # Errors
+    /// Can return a [AutomatonError::NoStates](enum.AutomatonError.html#variant.NoStates)
+    /// error if no transitions are given.
+    ///
+    /// # Examples
+    /// Automaton of generic type
+    /// ```rust
+    /// use liblet::automaton::{Automaton,Transition};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+    /// f.insert(vec!["1"].into_iter().collect());
+    ///
+    /// // automaton with starting state {"0"}
+    /// // and final state {"1"}
+    /// // and transiton "label" from {"0"} to {"1"}
+    /// let a = Automaton::new(vec![t], f);
+    /// ```
+    ///
+    /// Automaton of symbols
+    /// ```rust
+    /// use liblet::automaton::{Automaton,transitions};
+    /// use liblet::symbol::{Symbol,symbol};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = transitions("A -> label -> B");
+    /// let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+    /// f.insert(vec![symbol("B")].into_iter().collect());
+    ///
+    /// // automaton with starting state {"A"}
+    /// // and final state {"B"}
+    /// // and transiton "label" from {"A"} to {"B"}
+    /// let a = Automaton::new(t, f);
+    /// ```
+    pub fn new<I, Q, F>(transitions: I, f: F) -> Result<Automaton<T>, AutomatonError>
+    where
+        I: IntoIterator<Item = Transition<T>>,
+        Q: IntoIterator<Item = T>,
+        F: IntoIterator<Item = Q>,
+    {
+        let transitions: Vec<Transition<T>> = transitions.into_iter().collect();
+        let q0 = match transitions.first() {
+            Some(t) => t.from(),
+            None => return Err(AutomatonError::NoStates),
+        };
+
+        Automaton::with_q0(
+            transitions,
+            f.into_iter()
+                .map(|f| f.into_iter().collect())
+                .collect::<BTreeSet<BTreeSet<T>>>(),
+            q0,
+        )
+    }
+
+    /// Creates a new automaton based on the transitions, starting state
+    /// and final states given.
+    ///
+    /// # Errors
+    /// Can return a [AutomatonError::NoStates](enum.AutomatonError.html#variant.NoStates)
+    /// error if no transitions are given.
+    ///
+    /// # Examples
+    /// Automaton of generic type
+    /// ```rust
+    /// use liblet::automaton::{Automaton,Transition};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let q0: BTreeSet<&str> = vec!["0"].into_iter().collect();
+    /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+    /// f.insert(vec!["1"].into_iter().collect());
+    ///
+    /// // automaton with starting state {"0"}
+    /// // and final state {"1"}
+    /// // and transiton "label" from {"0"} to {"1"}
+    /// let a = Automaton::with_q0(vec![t], f, q0);
+    /// ```
+    ///
+    /// Automaton of symbols
+    /// ```rust
+    /// use liblet::automaton::{Automaton,transitions};
+    /// use liblet::symbol::{Symbol,symbol};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = transitions("A -> label -> B");
+    /// let q0: BTreeSet<Symbol> = vec![symbol("A")].into_iter().collect();
+    /// let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+    /// f.insert(vec![symbol("B")].into_iter().collect());
+    ///
+    /// // automaton with starting state {"A"}
+    /// // and final state {"B"}
+    /// // and transiton "label" from {"A"} to {"B"}
+    /// let a = Automaton::with_q0(t, f, q0);
+    /// ```
+    pub fn with_q0<I, Q, F>(transitions: I, f: F, q0: Q) -> Result<Automaton<T>, AutomatonError>
+    where
+        I: IntoIterator<Item = Transition<T>>,
+        Q: IntoIterator<Item = T>,
+        F: IntoIterator<Item = Q>,
+    {
+        let transitions: Vec<Transition<T>> = transitions.into_iter().collect();
+        if transitions.is_empty() {
+            Err(AutomatonError::NoStates)
+        } else {
+            Ok(Automaton {
+                transitions: transitions.into_iter().collect(),
+                q0: q0.into_iter().collect(),
+                f: f.into_iter().map(|f| f.into_iter().collect()).collect(),
+            })
+        }
+    }
+
+    /// Return the states of the automaton.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::automaton::{Automaton,Transition};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+    /// f.insert(vec!["1"].into_iter().collect());
+    ///
+    /// let a = Automaton::new(vec![t], f)?;
+    ///
+    /// // states will be {{"0"}, {"1"}}
+    /// let states: BTreeSet<BTreeSet<&str>> =
+    ///     vec![vec!["0"],vec!["1"]].into_iter()
+    ///         .map(|s| s.into_iter().collect())
+    ///         .collect();
+    ///
+    /// assert_eq!(a.n(), states);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn n(&self) -> BTreeSet<BTreeSet<T>> {
+        self.transitions
+            .clone()
+            .into_iter()
+            .fold(BTreeSet::new(), |mut acc, t| {
+                acc.insert(t.from());
+                acc.insert(t.to());
+                acc
+            })
+    }
+
+    /// Return the starting state of the automaton.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::automaton::{Automaton,Transition};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+    /// f.insert(vec!["1"].into_iter().collect());
+    ///
+    /// let a = Automaton::new(vec![t], f)?;
+    ///
+    /// // starting state will be {"0"}
+    /// let q0: BTreeSet<&str> =
+    ///     vec!["0"].into_iter().collect();
+    ///
+    /// assert_eq!(a.q0(), q0);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn q0(&self) -> BTreeSet<T> {
+        self.q0.clone()
+    }
+}
+
+impl Automaton<Symbol> {
+    /// Create a new automaton based on the transitions specified as string,
+    /// other than an optional starting state and the final states.
+    ///
+    /// The starting state is inferred from the "from" part of the first parsed
+    /// transition, if None is specified at input (if there's at least one transition).
+    ///
+    /// # Errors
+    /// Can return a [AutomatonError](enum.AutomatonError.html) if an error occurs
+    /// while parsing transitions from string or during automaton creation.
+    ///
+    /// # Example
+    /// ```rust
+    /// use liblet::automaton::Automaton;
+    /// use liblet::symbol::symbol;
+    ///
+    /// // create an automaton with two transitions,
+    /// // 3 states and the starting state {"A"},
+    /// // but no final state
+    /// let a = Automaton::from_string(
+    ///     "A -> label -> B",
+    ///     vec![],
+    ///     Some(vec![symbol("A")])
+    /// );
+    /// ```
+    pub fn from_string<Q, F>(
+        transitions: &str,
+        f: F,
+        q0: Option<Q>,
+    ) -> Result<Automaton<Symbol>, AutomatonError>
+    where
+        Q: IntoIterator<Item = Symbol>,
+        F: IntoIterator<Item = Q>,
+    {
+        let t = Transition::from_string(transitions)?;
+
+        match q0 {
+            Some(q0) => Automaton::with_q0(t, f, q0),
+            None => Automaton::new(t, f),
+        }
+    }
+}
+
 /// Convenience method for creating a transition of symbols from a string.
 ///
 /// It returns the transition directly, as opposed to the `Result` returned from
@@ -309,7 +609,7 @@ mod tests {
 
         assert_eq!(
             t.from,
-            HashSet::from_iter(from_check),
+            BTreeSet::from_iter(from_check),
             "New transition creation, from don't match"
         );
         assert!(
@@ -323,7 +623,7 @@ mod tests {
         );
         assert_eq!(
             t.to,
-            HashSet::from_iter(to_check),
+            BTreeSet::from_iter(to_check),
             "New transition creation, to set don't match"
         );
     }
@@ -359,7 +659,7 @@ mod tests {
         );
         assert_eq!(
             t[0].from(),
-            vec![symbol("A")].into_iter().collect::<HashSet<Symbol>>(),
+            vec![symbol("A")].into_iter().collect::<BTreeSet<Symbol>>(),
             "Transition from is not what expected"
         );
         assert_eq!(
@@ -369,7 +669,7 @@ mod tests {
         );
         assert_eq!(
             t[0].to(),
-            vec![symbol("B")].into_iter().collect::<HashSet<Symbol>>(),
+            vec![symbol("B")].into_iter().collect::<BTreeSet<Symbol>>(),
             "Transition to is not what expected"
         );
     }
@@ -391,12 +691,12 @@ mod tests {
         );
         assert_eq!(
             t[0].from(),
-            vec![symbol("A")].into_iter().collect::<HashSet<Symbol>>()
+            vec![symbol("A")].into_iter().collect::<BTreeSet<Symbol>>()
         );
         assert_eq!(t[0].label(), None);
         assert_eq!(
             t[0].to(),
-            vec![symbol("B")].into_iter().collect::<HashSet<Symbol>>()
+            vec![symbol("B")].into_iter().collect::<BTreeSet<Symbol>>()
         );
     }
 
@@ -532,7 +832,157 @@ mod tests {
         );
     }
 
-    /// mod.transition
+    /// struct.Automaton   
+
+    #[test]
+    fn automaton_new() {
+        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+        f.insert(vec!["1"].into_iter().collect());
+
+        let result = Automaton::new(vec![t], f);
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let expected_n: BTreeSet<BTreeSet<&str>> = vec![vec!["0"], vec!["1"]]
+            .into_iter()
+            .map(|s| s.into_iter().collect())
+            .collect();
+
+        assert_eq!(
+            result.unwrap().n(),
+            expected_n,
+            "New automaton states are not those expected"
+        );
+    }
+
+    #[test]
+    fn automaton_with_q0() {
+        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let q0: BTreeSet<&str> = vec!["A"].into_iter().collect();
+        let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+        f.insert(vec!["1"].into_iter().collect());
+
+        let result = Automaton::with_q0(vec![t], f, q0.clone());
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+        let a = result.unwrap();
+
+        assert_eq!(
+            a.q0(),
+            q0,
+            "New automaton q0 starting state is not the one expected"
+        );
+
+        let expected_n: BTreeSet<BTreeSet<&str>> = vec![vec!["0"], vec!["1"]]
+            .into_iter()
+            .map(|s| s.into_iter().collect())
+            .collect();
+
+        assert_eq!(
+            a.n(),
+            expected_n,
+            "New automaton states are not those expected"
+        );
+    }
+
+    #[test]
+    fn automaton_n() {
+        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+        f.insert(vec!["1"].into_iter().collect());
+
+        let result = Automaton::new(vec![t], f);
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let expected_n: BTreeSet<BTreeSet<&str>> = vec![vec!["0"], vec!["1"]]
+            .into_iter()
+            .map(|s| s.into_iter().collect())
+            .collect();
+
+        assert_eq!(
+            result.unwrap().n(),
+            expected_n,
+            "New automaton states are not those expected"
+        );
+    }
+
+    #[test]
+    fn automaton_q0() {
+        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+        f.insert(vec!["1"].into_iter().collect());
+
+        let result = Automaton::new(vec![t], f);
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let expected_q0: BTreeSet<&str> = vec!["0"].into_iter().collect();
+
+        assert_eq!(
+            result.unwrap().q0(),
+            expected_q0,
+            "New automaton starting state is not the one expected"
+        );
+    }
+
+    /// enum.AutomatonError
+
+    #[test]
+    fn automaton_error_display_no_states() {
+        let mut buf = String::new();
+        let string = "A";
+        let error = TokenizerError::TransitionNoLabel(string.to_string());
+
+        let result = write!(buf, "{}", TransitionError::FormatError(error.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!("TransitionError: format error encountered = {}", error)
+        )
+    }
+
+    #[test]
+    fn automaton_error_display_transition_error() {
+        let mut buf = String::new();
+        let string = "A";
+        let error =
+            TransitionError::FormatError(TokenizerError::TransitionNoLabel(string.to_string()));
+
+        let result = write!(buf, "{}", AutomatonError::TransitionError(error.clone()));
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!("AutomatonError: transition error encountered = {}", error)
+        )
+    }
+
+    #[test]
+    fn automaton_error_source() {
+        assert!(
+            AutomatonError::NoStates.source().is_none(),
+            "Automaton Error format error source should be none"
+        );
+        assert!(
+            AutomatonError::TransitionError(TransitionError::FormatError(
+                TokenizerError::ProductionEmpty(String::new())
+            ))
+            .source()
+            .is_some(),
+            "Transition Error symbol error source should be some"
+        );
+    }
+
+    /// mod.automaton
 
     #[test]
     fn transition() {
