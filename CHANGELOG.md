@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added method `label` on `Transition` struct for accessing the label of the transition
 - Added method `to` on `Transition` struct for accessing the to state of the transition
 - Added static method `from_string` on `Transition` struct for creating transitions from strings
+- Added implementation of the `From` trait for `Transition`
+- Added constructor functions `transition` and `transitions` in the `automaton` module
 - Added `TransitionError` enum for errors occurring during transitions manipulations
   - Added variant `SymbolError`
   - Added variant `FormatError`
@@ -23,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added variant `TransitionNoTo`
   - Added variant `TransitionNoLabel`
   - Added variant `TransitionMultipleOneLine`
+  - Added variant `TransitionEmpty`
 
 ## [0.1.2] - 2020-05-16
 
