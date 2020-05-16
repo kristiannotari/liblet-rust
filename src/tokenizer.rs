@@ -11,6 +11,7 @@ pub enum TokenizerError {
     ProductionNoSeparator(String),
     ProductionMultipleOneLine(usize),
     ProductionMultiple(String),
+    ProductionEmpty(String),
 }
 
 impl fmt::Display for TokenizerError {
@@ -39,6 +40,11 @@ impl fmt::Display for TokenizerError {
             TokenizerError::ProductionMultiple(string) => write!(
                 f,
                 "TokenizerError: Too many production rules found in \"{}\", expected only 1",
+                string
+            ),
+            TokenizerError::ProductionEmpty(string) => write!(
+                f,
+                "TokenizerError: expected at least 1 production in given input \"{}\" but no one found",
                 string
             ),
         }
@@ -333,6 +339,26 @@ mod tests {
             buf,
             format!(
                 "TokenizerError: Too many production rules found in \"{}\", expected only 1",
+                string
+            )
+        )
+    }
+
+    #[test]
+    fn tokenizer_error_display_production_empty() {
+        let mut buf = String::new();
+        let string = "A ";
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::ProductionEmpty(string.to_string())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: expected at least 1 production in given input \"{}\" but no one found",
                 string
             )
         )
