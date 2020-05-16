@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/liblet/0.1.1")]
+#![doc(html_root_url = "https://docs.rs/liblet/0.1.2")]
 
 //! Porting project for the liblet library of the Unimi course "Linguaggi e Traduttori" in Rust.
 //!

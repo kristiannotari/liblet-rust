@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added variant `TransitionNoLabel`
   - Added variant `TransitionMultipleOneLine`
 
+## [0.1.2] - 2020-05-16
+
+### Fixed
+
+- Replaced error variant returned for production `try_from` method in order to be more precise about the occurred error when no productions are parsed from the input string
+
 ## [0.1.1] - 2020-05-12
 
 ### Fixed

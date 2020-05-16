@@ -23,6 +23,10 @@ pub enum TokenizerError {
     /// Error for having multiple productions when expecting only one in the
     /// whole given string
     ProductionMultiple(String),
+    /// Error for having a given string not containing any production but
+    /// at least one was expected (see [Production](production/struct.Production.html)
+    /// documentation for further details)
+    ProductionEmpty(String),
     /// Error for having no "to" part in the transition
     TransitionNoTo(String),
     /// Error for having no "label" part in the transition
@@ -66,6 +70,11 @@ impl fmt::Display for TokenizerError {
                 "TokenizerError: Too many production rules found in \"{}\", expected only 1",
                 string
             ),
+            TokenizerError::ProductionEmpty(string) => write!(
+                f,
+                "TokenizerError: expected at least 1 production in given input \"{}\" but no one found",
+                string
+            ),
             TokenizerError::TransitionNoTo(string) => write!(
                 f,
                 "TokenizerError: no \"to\" part in transition \"{}\"",
@@ -90,7 +99,7 @@ impl fmt::Display for TokenizerError {
                 f,
                 "TokenizerError: expected at least one transition but zero found in the given input \"{}\"",
                 string
-            ),
+            )
         }
     }
 }
@@ -512,6 +521,26 @@ mod tests {
     }
 
     #[test]
+    fn tokenizer_error_display_production_empty() {
+        let mut buf = String::new();
+        let string = "A ";
+
+        let result = write!(
+            buf,
+            "{}",
+            TokenizerError::ProductionEmpty(string.to_string())
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!(
+                "TokenizerError: expected at least 1 production in given input \"{}\" but no one found",
+                string
+            )
+        )
+    }
+
+    #[test]
     fn tokenizer_error_display_transition_no_to() {
         let mut buf = String::new();
         let string = "A -> B";
@@ -521,6 +550,7 @@ mod tests {
             "{}",
             TokenizerError::TransitionNoTo(string.to_string())
         );
+
         assert!(result.is_ok());
         assert_eq!(
             buf,
@@ -528,7 +558,7 @@ mod tests {
                 "TokenizerError: no \"to\" part in transition \"{}\"",
                 string
             )
-        )
+        );
     }
 
     #[test]
