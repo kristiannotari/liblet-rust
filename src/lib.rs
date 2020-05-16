@@ -73,6 +73,9 @@ pub mod grammar;
 pub mod production;
 pub mod symbol;
 
+pub use self::automaton::Automaton;
+pub use self::automaton::Transition;
+
 pub use self::derivation::Derivation;
 pub use self::derivation::DerivationError;
 pub use self::derivation::DerivationStep;
