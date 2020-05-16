@@ -69,7 +69,7 @@ where
     T: Eq + Clone + Ord,
 {
     from: BTreeSet<T>,
-    label: Option<String>,
+    label: Symbol,
     to: BTreeSet<T>,
 }
 
@@ -83,7 +83,7 @@ impl fmt::Display for Transition<Symbol> {
             f,
             "{{{}}} --\"{}\"--> {{{}}}",
             sentential_form(from).replace(" ", ","),
-            self.label().unwrap_or(String::new()),
+            self.label(),
             sentential_form(to).replace(" ", ",")
         )
     }
@@ -128,15 +128,15 @@ where
     /// use liblet::symbol::symbol;
     ///
     /// // here we define a transition of the form {A} --> "label" --> {B}
-    /// let t = Transition::new(vec![symbol("A")], Some("label"), vec![symbol("B")]);
+    /// let t = Transition::new(vec![symbol("A")], symbol("label"), vec![symbol("B")]);
     /// ```
-    pub fn new<I>(from: I, label: Option<&str>, to: I) -> Transition<T>
+    pub fn new<I>(from: I, label: Symbol, to: I) -> Transition<T>
     where
         I: IntoIterator<Item = T>,
     {
         Transition {
             from: from.into_iter().collect(),
-            label: label.map(|s| s.to_string()),
+            label: label,
             to: to.into_iter().collect(),
         }
     }
@@ -150,7 +150,7 @@ where
     /// use std::collections::BTreeSet;
     /// use std::iter::FromIterator;
     ///
-    /// let t = Transition::new(vec![symbol("A")], Some("label"), vec![symbol("B")]);
+    /// let t = Transition::new(vec![symbol("A")], symbol("label"), vec![symbol("B")]);
     ///
     /// assert_eq!(t.from(), BTreeSet::from_iter(vec![symbol("A")]));
     /// ```
@@ -167,7 +167,7 @@ where
     /// use std::collections::BTreeSet;
     /// use std::iter::FromIterator;
     ///
-    /// let t = Transition::new(vec![symbol("A")], Some("label"), vec![symbol("B")]);
+    /// let t = Transition::new(vec![symbol("A")], symbol("label"), vec![symbol("B")]);
     ///
     /// assert_eq!(t.to(), BTreeSet::from_iter(vec![symbol("B")]));
     /// ```
@@ -182,12 +182,11 @@ where
     /// use liblet::automaton::Transition;
     /// use liblet::symbol::symbol;
     ///
-    /// let t = Transition::new(vec![symbol("A")], Some("label"), vec![symbol("B")]);
+    /// let t = Transition::new(vec![symbol("A")], symbol("label"), vec![symbol("B")]);
     ///
-    /// assert!(t.label().is_some());
-    /// assert_eq!(t.label().unwrap(), "label".to_string());
+    /// assert_eq!(t.label(), symbol("label"));
     /// ```
-    pub fn label(&self) -> Option<String> {
+    pub fn label(&self) -> Symbol {
         self.label.clone()
     }
 }
@@ -201,7 +200,6 @@ impl Transition<Symbol> {
     /// # Examples
     /// ```rust
     /// use liblet::automaton::Transition;
-    /// use liblet::symbol::symbol;
     ///
     /// // here we define a transition of the form {A1,A2} --> "label" --> {B1,B2}
     /// let t = Transition::from_string("A1 A2 -> label -> B1 B2");
@@ -230,14 +228,10 @@ impl Transition<Symbol> {
                         Ok(acc)
                     },
                 )?;
-                let t: Transition<Symbol>;
-                if label.is_empty() {
-                    t = Transition::new(from, None, to);
-                } else {
-                    t = Transition::new(from, Some(label), to);
-                }
 
-                acc.push(t);
+                let label = Symbol::new(label)?;
+
+                acc.push(Transition::new(from, label, to));
                 Ok(acc)
             })
     }
@@ -332,9 +326,10 @@ where
     /// Automaton of generic type
     /// ```rust
     /// use liblet::automaton::{Automaton,Transition};
+    /// use liblet::symbol::symbol;
     /// use std::collections::BTreeSet;
     ///
-    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
     /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
     /// f.insert(vec!["1"].into_iter().collect());
     ///
@@ -391,9 +386,10 @@ where
     /// Automaton of generic type
     /// ```rust
     /// use liblet::automaton::{Automaton,Transition};
+    /// use liblet::symbol::symbol;
     /// use std::collections::BTreeSet;
     ///
-    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
     /// let q0: BTreeSet<&str> = vec!["0"].into_iter().collect();
     /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
     /// f.insert(vec!["1"].into_iter().collect());
@@ -446,9 +442,10 @@ where
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use liblet::automaton::{Automaton,Transition};
+    /// use liblet::symbol::symbol;
     /// use std::collections::BTreeSet;
     ///
-    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
     /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
     /// f.insert(vec!["1"].into_iter().collect());
     ///
@@ -484,9 +481,10 @@ where
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use liblet::automaton::{Automaton,Transition};
+    /// use liblet::symbol::symbol;
     /// use std::collections::BTreeSet;
     ///
-    /// let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+    /// let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
     /// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
     /// f.insert(vec!["1"].into_iter().collect());
     ///
@@ -602,24 +600,18 @@ mod tests {
     #[test]
     fn transition_new() {
         let from_check = vec![symbol("A")];
-        let label = "label";
-        let label_check = Some(label);
+        let label = symbol("label");
         let to_check = vec![symbol("B")];
-        let t = Transition::new(from_check.clone(), label_check, to_check.clone());
+        let t = Transition::new(from_check.clone(), label.clone(), to_check.clone());
 
         assert_eq!(
             t.from,
             BTreeSet::from_iter(from_check),
             "New transition creation, from don't match"
         );
-        assert!(
-            t.label.is_some(),
-            "New transition creation, label not found"
-        );
         assert_eq!(
-            t.label.unwrap(),
-            label.to_string(),
-            "New transition creation, label not found"
+            t.label, label,
+            "New transition creation, label is no the one expected"
         );
         assert_eq!(
             t.to,
@@ -633,7 +625,7 @@ mod tests {
         let mut buf = String::new();
         let t = Transition::new(
             vec![symbol("A1"), symbol("A2")],
-            Some("label"),
+            symbol("label"),
             vec![symbol("B1"), symbol("B2")],
         );
 
@@ -664,7 +656,7 @@ mod tests {
         );
         assert_eq!(
             t[0].label(),
-            Some("label".to_string()),
+            symbol("label"),
             "Transition label is not what expected"
         );
         assert_eq!(
@@ -675,28 +667,19 @@ mod tests {
     }
 
     #[test]
-    fn transition_from_string_none_label() {
+    fn transition_from_string_no_label() {
         let result = Transition::from_string("A -> -> B");
 
         assert!(
-            result.is_ok(),
-            "Transition from string should not return an Err"
+            result.is_err(),
+            "Transition from string should return an Err"
         );
-        let t = result.unwrap();
+        let e = result.unwrap_err();
 
         assert_eq!(
-            t.len(),
-            1,
-            "Transitions from string are not long as expected"
-        );
-        assert_eq!(
-            t[0].from(),
-            vec![symbol("A")].into_iter().collect::<BTreeSet<Symbol>>()
-        );
-        assert_eq!(t[0].label(), None);
-        assert_eq!(
-            t[0].to(),
-            vec![symbol("B")].into_iter().collect::<BTreeSet<Symbol>>()
+            e,
+            TransitionError::SymbolError(SymbolError::EmptySymbol),
+            "Transitions from string returned error is not the one expected"
         );
     }
 
@@ -836,7 +819,7 @@ mod tests {
 
     #[test]
     fn automaton_new() {
-        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
         let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
         f.insert(vec!["1"].into_iter().collect());
 
@@ -860,7 +843,7 @@ mod tests {
 
     #[test]
     fn automaton_with_q0() {
-        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
         let q0: BTreeSet<&str> = vec!["A"].into_iter().collect();
         let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
         f.insert(vec!["1"].into_iter().collect());
@@ -892,7 +875,7 @@ mod tests {
 
     #[test]
     fn automaton_n() {
-        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
         let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
         f.insert(vec!["1"].into_iter().collect());
 
@@ -916,7 +899,7 @@ mod tests {
 
     #[test]
     fn automaton_q0() {
-        let t = Transition::new(vec!["0"], Some("label"), vec!["1"]);
+        let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
         let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
         f.insert(vec!["1"].into_iter().collect());
 
