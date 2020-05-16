@@ -354,11 +354,11 @@ where
     /// // and transiton "label" from {"A"} to {"B"}
     /// let a = Automaton::new(t, f);
     /// ```
-    pub fn new<I, Q, F>(transitions: I, f: F) -> Result<Automaton<T>, AutomatonError>
+    pub fn new<I, F>(transitions: I, f: F) -> Result<Automaton<T>, AutomatonError>
     where
         I: IntoIterator<Item = Transition<T>>,
-        Q: IntoIterator<Item = T>,
-        F: IntoIterator<Item = Q>,
+        F: IntoIterator,
+        F::Item: IntoIterator<Item = T>,
     {
         let transitions: Vec<Transition<T>> = transitions.into_iter().collect();
         let q0 = match transitions.first() {
@@ -521,7 +521,6 @@ where
     ///
     /// let a = Automaton::new::<
     ///        Vec<Transition<Symbol>>,
-    ///        BTreeSet<Symbol>,
     ///        BTreeSet<BTreeSet<Symbol>>,
     ///    >(t, BTreeSet::new())?;
     ///
@@ -564,7 +563,7 @@ where
     ///
     /// let a = Automaton::new(t, f)?;
     ///
-    /// // labels set will be {"label1","label2"}
+    /// // final state is only one: {B1}
     /// let states: BTreeSet<BTreeSet<Symbol>> =
     ///     vec![vec![symbol("B1")]].into_iter()
     ///         .map(|s| s.into_iter().collect())
@@ -577,6 +576,53 @@ where
     /// ```
     pub fn f(&self) -> BTreeSet<BTreeSet<T>> {
         self.f.clone()
+    }
+
+    /// Return the next reachable states from the specified state and using the transitions
+    /// with the specified label.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::automaton::{Automaton,Transition,transitions};
+    /// use liblet::symbol::{symbol,Symbol};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = transitions("
+    ///     A1 -> label1 -> B1
+    ///     A2 -> label2 -> B2
+    /// ");
+    ///
+    /// let a = Automaton::new::<
+    ///        Vec<Transition<Symbol>>,
+    ///        BTreeSet<BTreeSet<Symbol>>,
+    ///    >(t, BTreeSet::new())?;
+    ///
+    /// // next states is only one: {B1}
+    /// let next: BTreeSet<BTreeSet<Symbol>> =
+    ///     vec![
+    ///         vec![symbol("B1")],
+    ///     ].into_iter().map(|n| n.into_iter().collect()).collect();
+    ///
+    /// assert_eq!(a.next(vec![symbol("A1")], symbol("label1")), next);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn next<I>(&self, state: I, label: Symbol) -> BTreeSet<BTreeSet<T>>
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let state: BTreeSet<T> = state.into_iter().collect();
+        self.transitions.iter().fold(BTreeSet::new(), |mut acc, t| {
+            if t.from() == state && t.label() == label {
+                acc.insert(t.to());
+            }
+
+            acc
+        })
     }
 }
 
@@ -918,6 +964,22 @@ mod tests {
     }
 
     #[test]
+    fn automaton_new_no_transitions() {
+        let f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+
+        let result = Automaton::new(vec![], f);
+        assert!(result.is_err(), "Automaton creation should return an error");
+
+        let e = result.unwrap_err();
+
+        assert_eq!(
+            e,
+            AutomatonError::NoStates,
+            "Automaton creation error is not the one expected"
+        );
+    }
+
+    #[test]
     fn automaton_with_q0() {
         let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
         let q0: BTreeSet<&str> = vec!["A"].into_iter().collect();
@@ -946,6 +1008,22 @@ mod tests {
             a.n(),
             expected_n,
             "New automaton states are not those expected"
+        );
+    }
+
+    #[test]
+    fn automaton_with_q0_no_transitions() {
+        let q0: BTreeSet<&str> = vec!["A"].into_iter().collect();
+        let f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+
+        let result = Automaton::with_q0(vec![], f, q0.clone());
+        assert!(result.is_err(), "Automaton creation should return an error");
+        let e = result.unwrap_err();
+
+        assert_eq!(
+            e,
+            AutomatonError::NoStates,
+            "Automaton creation error is not the one expected"
         );
     }
 
@@ -1003,11 +1081,10 @@ mod tests {
         ",
         );
 
-        let result = Automaton::new::<
-            Vec<Transition<Symbol>>,
-            BTreeSet<Symbol>,
-            BTreeSet<BTreeSet<Symbol>>,
-        >(t, BTreeSet::new());
+        let result = Automaton::new::<Vec<Transition<Symbol>>, BTreeSet<BTreeSet<Symbol>>>(
+            t,
+            BTreeSet::new(),
+        );
         assert!(
             result.is_ok(),
             "Automaton creation should not return an error"
@@ -1021,6 +1098,143 @@ mod tests {
             result.unwrap().t(),
             labels,
             "Automaton labels set is not the one expected"
+        );
+    }
+
+    #[test]
+    fn automaton_f() {
+        let t = super::transitions(
+            "
+         A1 -> label1 -> B1
+         A2 -> label2 -> B2
+        ",
+        );
+        let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+        f.insert(vec![symbol("B1")].into_iter().collect());
+
+        let result = Automaton::new(t, f);
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let states: BTreeSet<BTreeSet<Symbol>> = vec![vec![symbol("B1")]]
+            .into_iter()
+            .map(|s| s.into_iter().collect())
+            .collect();
+
+        assert_eq!(
+            result.unwrap().f(),
+            states,
+            "Automaton final states set is not the one expected"
+        );
+    }
+
+    #[test]
+    fn automaton_next() {
+        let t = super::transitions(
+            "
+         A1 -> label1 -> B1
+         A2 -> label2 -> B2
+        ",
+        );
+
+        let result = Automaton::new::<Vec<Transition<Symbol>>, BTreeSet<BTreeSet<Symbol>>>(
+            t,
+            BTreeSet::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let expected: BTreeSet<BTreeSet<Symbol>> = vec![vec![symbol("B1")]]
+            .into_iter()
+            .map(|n| n.into_iter().collect())
+            .collect();
+
+        assert_eq!(
+            result.unwrap().next(vec![symbol("A1")], symbol("label1")),
+            expected
+        );
+    }
+
+    #[test]
+    fn automaton_from_string_no_q0() {
+        let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+        f.insert(vec![symbol("B1")].into_iter().collect());
+
+        let result = Automaton::from_string(
+            "
+        A1 -> label1 -> B1
+        A2 -> label2 -> B2
+       ",
+            f,
+            None,
+        );
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let q0: BTreeSet<Symbol> = vec![symbol("A1")].into_iter().collect();
+
+        assert_eq!(
+            result.unwrap().q0(),
+            q0,
+            "Automaton starting set is not the one expected"
+        );
+    }
+
+    #[test]
+    fn automaton_from_string_with_q0() {
+        let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+        f.insert(vec![symbol("B1")].into_iter().collect());
+
+        let result = Automaton::from_string(
+            "
+        A1 -> label1 -> B1
+        A2 -> label2 -> B2
+       ",
+            f,
+            Some(vec![symbol("A2")].into_iter().collect()),
+        );
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let q0: BTreeSet<Symbol> = vec![symbol("A2")].into_iter().collect();
+
+        assert_eq!(
+            result.unwrap().q0(),
+            q0,
+            "Automaton starting set is not the one expected"
+        );
+    }
+
+    #[test]
+    fn automaton_from_string_error() {
+        let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+        f.insert(vec![symbol("B1")].into_iter().collect());
+
+        let result = Automaton::from_string(
+            "
+        å -> label1 -> B1
+        A2 -> label2 -> B2
+       ",
+            f,
+            None,
+        );
+        assert!(result.is_err(), "Automaton creation should return an error");
+        let e = result.unwrap_err();
+
+        assert_eq!(
+            e,
+            AutomatonError::TransitionError(TransitionError::SymbolError(
+                SymbolError::InvalidSymbol("å".to_string())
+            )),
+            "Automaton creation returned error is not the one expected"
         );
     }
 
