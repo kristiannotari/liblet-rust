@@ -160,7 +160,6 @@ pub fn transitions_from_string(
 
     for (i, transition) in string.trim().lines().map(|s| s.trim()).enumerate() {
         let mut parts = transition.split(TRANSITION_SEP);
-        println!("PRINTING: {}", transition);
         match (parts.next(), parts.next(), parts.next(), parts.next()) {
             (Some(from), Some(label), Some(to), None) => transitions.push((
                 symbols_from_string(from),
