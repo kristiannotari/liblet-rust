@@ -502,6 +502,82 @@ where
     pub fn q0(&self) -> BTreeSet<T> {
         self.q0.clone()
     }
+
+    /// Return the labels set of the automaton.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::automaton::{Automaton,Transition,transitions};
+    /// use liblet::symbol::{symbol,Symbol};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = transitions("
+    ///     A1 -> label1 -> B1
+    ///     A2 -> label2 -> B2
+    /// ");
+    ///
+    /// let a = Automaton::new::<
+    ///        Vec<Transition<Symbol>>,
+    ///        BTreeSet<Symbol>,
+    ///        BTreeSet<BTreeSet<Symbol>>,
+    ///    >(t, BTreeSet::new())?;
+    ///
+    /// // labels set will be {"label1","label2"}
+    /// let labels: BTreeSet<Symbol> =
+    ///     vec![
+    ///         symbol("label1"),
+    ///         symbol("label2")
+    ///     ].into_iter().collect();
+    ///
+    /// assert_eq!(a.t(), labels);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn t(&self) -> BTreeSet<Symbol> {
+        self.transitions.iter().fold(BTreeSet::new(), |mut acc, t| {
+            acc.insert(t.label().clone());
+            acc
+        })
+    }
+
+    /// Return the final states set of the automaton.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::automaton::{Automaton,transitions};
+    /// use liblet::symbol::{symbol,Symbol};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = transitions("
+    ///     A1 -> label1 -> B1
+    ///     A2 -> label2 -> B2
+    /// ");
+    /// let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+    /// f.insert(vec![symbol("B1")].into_iter().collect());
+    ///
+    /// let a = Automaton::new(t, f)?;
+    ///
+    /// // labels set will be {"label1","label2"}
+    /// let states: BTreeSet<BTreeSet<Symbol>> =
+    ///     vec![vec![symbol("B1")]].into_iter()
+    ///         .map(|s| s.into_iter().collect())
+    ///         .collect();
+    ///
+    /// assert_eq!(a.f(), states);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn f(&self) -> BTreeSet<BTreeSet<T>> {
+        self.f.clone()
+    }
 }
 
 impl Automaton<Symbol> {
@@ -915,6 +991,36 @@ mod tests {
             result.unwrap().q0(),
             expected_q0,
             "New automaton starting state is not the one expected"
+        );
+    }
+
+    #[test]
+    fn automaton_t() {
+        let t = super::transitions(
+            "
+         A1 -> label1 -> B1
+         A2 -> label2 -> B2
+        ",
+        );
+
+        let result = Automaton::new::<
+            Vec<Transition<Symbol>>,
+            BTreeSet<Symbol>,
+            BTreeSet<BTreeSet<Symbol>>,
+        >(t, BTreeSet::new());
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        let labels: BTreeSet<Symbol> = vec![symbol("label1"), symbol("label2")]
+            .into_iter()
+            .collect();
+
+        assert_eq!(
+            result.unwrap().t(),
+            labels,
+            "Automaton labels set is not the one expected"
         );
     }
 
