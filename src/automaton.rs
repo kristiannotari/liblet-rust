@@ -602,6 +602,37 @@ where
         })
     }
 
+    /// Return the transitions set of the automaton.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use liblet::automaton::{Automaton,Transition,transitions};
+    /// use liblet::symbol::{symbol,Symbol};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let t = transitions("
+    ///     A1 -> label1 -> B1
+    ///     A2 -> label2 -> B2
+    /// ");
+    ///
+    /// let a = Automaton::new::<
+    ///        Vec<Transition<Symbol>>,
+    ///        BTreeSet<BTreeSet<Symbol>>,
+    ///    >(t.clone(), BTreeSet::new())?;
+    ///
+    ///
+    /// assert_eq!(a.transitions(), t.into_iter().collect());
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn transitions(&self) -> BTreeSet<Transition<T>> {
+        self.transitions.clone()
+    }
+
     /// Return the final states set of the automaton.
     ///
     /// # Examples
@@ -1280,6 +1311,31 @@ mod tests {
     }
 
     #[test]
+    fn automaton_transitions() {
+        let t = super::transitions(
+            "
+         A1 -> label1 -> B1
+         A2 -> label2 -> B2
+        ",
+        );
+
+        let result = Automaton::new::<Vec<Transition<Symbol>>, BTreeSet<BTreeSet<Symbol>>>(
+            t.clone(),
+            BTreeSet::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "Automaton creation should not return an error"
+        );
+
+        assert_eq!(
+            result.unwrap().transitions(),
+            t.into_iter().collect(),
+            "Automaton transitions set is not the one expected"
+        );
+    }
+
+    #[test]
     fn automaton_f() {
         let t = super::transitions(
             "
@@ -1419,9 +1475,28 @@ mod tests {
     #[test]
     fn automaton_from_grammar() {
         let g = grammar("A -> B\nB -> b | ε");
-        let a = Automaton::from_grammar(g);
+        let result = Automaton::from_grammar(g);
 
-        println!("AUTOMATON:\n{}", a.unwrap());
+        assert!(
+            result.is_ok(),
+            "Automaton creation from grammar should not return an error"
+        );
+    }
+
+    #[test]
+    fn automaton_from_grammar_error() {
+        let g = grammar("A -> B C D\nB -> b | ε");
+        let result = Automaton::from_grammar(g);
+
+        assert!(
+            result.is_err(),
+            "Automaton creation from grammar should return an error"
+        );
+        assert_eq!(
+            result.unwrap_err(),
+            AutomatonError::InvalidGrammar,
+            "Automaton creation returned error is not the one expected"
+        )
     }
 
     #[test]
