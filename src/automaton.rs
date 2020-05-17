@@ -3,6 +3,7 @@
 //! This module can help abstracting over regular grammars, seeing them as automaton.
 //! It collaborates strictly with the other modules of the library in order to be as easy
 //! as possible to work with.
+use crate::grammar::Grammar;
 use crate::symbol::{sentential_form, Symbol, SymbolError};
 use crate::tokenizer;
 use crate::tokenizer::TokenizerError;
@@ -63,7 +64,7 @@ impl std::convert::From<SymbolError> for TransitionError {
 ///
 /// States are defined as collections of [Symbol](../symbol/struct.Symbol.html)s.
 /// To define a transition between two symbols, simply use singleton collections.
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[derive(PartialEq, Eq, Clone, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct Transition<T>
 where
     T: Eq + Clone + Ord,
@@ -81,11 +82,32 @@ impl fmt::Display for Transition<Symbol> {
         to.sort();
         write!(
             f,
-            "{{{}}} --\"{}\"--> {{{}}}",
+            "{{{}}}->\"{}\"->{{{}}}",
             sentential_form(from).replace(" ", ","),
             self.label(),
             sentential_form(to).replace(" ", ",")
         )
+    }
+}
+
+impl<T> fmt::Debug for Transition<T>
+where
+    T: Eq + Clone + Ord + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let from: String = self
+            .from()
+            .into_iter()
+            .map(|t| String::from(format!("{:?}", t)))
+            .collect::<Vec<String>>()
+            .join(",");
+        let to: String = self
+            .to()
+            .into_iter()
+            .map(|t| String::from(format!("{:?}", t)))
+            .collect::<Vec<String>>()
+            .join(",");
+        write!(f, "{{{}}}->\"{}\"->{{{}}}", from, self.label(), to)
     }
 }
 
@@ -130,9 +152,10 @@ where
     /// // here we define a transition of the form {A} --> "label" --> {B}
     /// let t = Transition::new(vec![symbol("A")], symbol("label"), vec![symbol("B")]);
     /// ```
-    pub fn new<I>(from: I, label: Symbol, to: I) -> Transition<T>
+    pub fn new<IF, IT>(from: IF, label: Symbol, to: IT) -> Transition<T>
     where
-        I: IntoIterator<Item = T>,
+        IF: IntoIterator<Item = T>,
+        IT: IntoIterator<Item = T>,
     {
         Transition {
             from: from.into_iter().collect(),
@@ -243,6 +266,9 @@ pub enum AutomatonError {
     NoStates,
     /// A [TransitionError](enum.TransitionError.html) occurring during manipulation of automatons
     TransitionError(TransitionError),
+    /// Error for trying to create an automaton from a grammar which is not in the correct form. See
+    /// (from_grammar)[struct.Automaton.html#method.from_grammar] method for further details.
+    InvalidGrammar,
 }
 
 impl std::convert::From<TransitionError> for AutomatonError {
@@ -261,6 +287,10 @@ impl fmt::Display for AutomatonError {
             AutomatonError::TransitionError(e) => {
                 write!(f, "AutomatonError: transition error encountered = {}", e)
             }
+            AutomatonError::InvalidGrammar => write!(
+                f,
+                "AutomatonError: can't create an automaton from a grammar which is not in the required form",
+            ),
         }
     }
 }
@@ -269,7 +299,7 @@ impl Error for AutomatonError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             AutomatonError::TransitionError(e) => Some(e),
-            AutomatonError::NoStates => None,
+            _ => None,
         }
     }
 }
@@ -281,7 +311,7 @@ impl Error for AutomatonError {
 /// q0 is the starting state and F is the set of final states.
 ///
 /// The transitions are the ones defined in this same module: [Transition](struct.Transition.html)s.
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Automaton<T>
 where
     T: Eq + Clone + Ord,
@@ -291,22 +321,50 @@ where
     f: BTreeSet<BTreeSet<T>>,
 }
 
-// impl<T> fmt::Display for Automaton<T>
-// where
-//     T: Eq + Clone + Ord,
-// {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(
-//             f,
-//             "n: {}\nt: {}\ntransitions: {}\nq0: {}\nf: {}",
-//             self.n(),
-//             self.t(),
-//             self.transitions,
-//             self.q0,
-//             self.f
-//         )
-//     }
-// }
+impl<T> fmt::Debug for Automaton<T>
+where
+    T: Eq + Clone + Ord + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "n: {{{}}}\nt: {{{}}}\ntransitions: {{{}}}\nq0: {{{}}}\nf: {{{}}}",
+            self.n()
+                .iter()
+                .map(|n| format!(
+                    "{{{}}}",
+                    n.into_iter()
+                        .map(|n| String::from(format!("{:?}", n).as_str()))
+                        .collect::<Vec<String>>()
+                        .join(",")
+                ))
+                .collect::<Vec<String>>()
+                .join(","),
+            self.t()
+                .iter()
+                .map(|s| format!("{}", s))
+                .collect::<Vec<String>>()
+                .join(","),
+            self.transitions
+                .iter()
+                .map(|t| format!("{:?}", t))
+                .collect::<Vec<String>>()
+                .join(","),
+            self.q0
+                .iter()
+                .fold(String::new(), |acc, q0| acc + format!("{:?}", q0).as_str()),
+            self.f
+                .iter()
+                .map(|f| format!(
+                    "{{{}}}",
+                    f.into_iter()
+                        .fold(String::new(), |acc, f| acc + format!("{:?}", f).as_str())
+                ))
+                .collect::<Vec<String>>()
+                .join(","),
+        )
+    }
+}
 
 impl<T> Automaton<T>
 where
@@ -319,7 +377,7 @@ where
     /// given.
     ///
     /// # Errors
-    /// Can return a [AutomatonError::NoStates](enum.AutomatonError.html#variant.NoStates)
+    /// Can return an [AutomatonError::NoStates](enum.AutomatonError.html#variant.NoStates)
     /// error if no transitions are given.
     ///
     /// # Examples
@@ -379,7 +437,7 @@ where
     /// and final states given.
     ///
     /// # Errors
-    /// Can return a [AutomatonError::NoStates](enum.AutomatonError.html#variant.NoStates)
+    /// Can return an [AutomatonError::NoStates](enum.AutomatonError.html#variant.NoStates)
     /// error if no transitions are given.
     ///
     /// # Examples
@@ -420,7 +478,8 @@ where
     where
         I: IntoIterator<Item = Transition<T>>,
         Q: IntoIterator<Item = T>,
-        F: IntoIterator<Item = Q>,
+        F: IntoIterator,
+        F::Item: IntoIterator<Item = T>,
     {
         let transitions: Vec<Transition<T>> = transitions.into_iter().collect();
         if transitions.is_empty() {
@@ -626,6 +685,36 @@ where
     }
 }
 
+impl fmt::Display for Automaton<Symbol> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "n: {{{}}}\nt: {{{}}}\ntransitions: {{{}}}\nq0: {{{}}}\nf: {{{}}}",
+            self.n()
+                .iter()
+                .map(|n| format!("{{{}}}", sentential_form(n.clone()).replace(" ", ",")))
+                .collect::<Vec<String>>()
+                .join(","),
+            self.t()
+                .iter()
+                .map(|s| format!("{}", s))
+                .collect::<Vec<String>>()
+                .join(","),
+            self.transitions
+                .iter()
+                .map(|t| format!("{}", t))
+                .collect::<Vec<String>>()
+                .join(","),
+            sentential_form(self.q0()).replace(" ", ","),
+            self.f
+                .iter()
+                .map(|f| format!("{{{}}}", sentential_form(f.clone()).replace(" ", ",")))
+                .collect::<Vec<String>>()
+                .join(","),
+        )
+    }
+}
+
 impl Automaton<Symbol> {
     /// Create a new automaton based on the transitions specified as string,
     /// other than an optional starting state and the final states.
@@ -634,18 +723,18 @@ impl Automaton<Symbol> {
     /// transition, if None is specified at input (if there's at least one transition).
     ///
     /// # Errors
-    /// Can return a [AutomatonError](enum.AutomatonError.html) if an error occurs
+    /// Can return an [AutomatonError](enum.AutomatonError.html) if an error occurs
     /// while parsing transitions from string or during automaton creation.
     ///
     /// # Example
     /// ```rust
     /// use liblet::automaton::Automaton;
-    /// use liblet::symbol::symbol;
+    /// use liblet::symbol::{symbol,Symbol};
     ///
     /// // create an automaton with two transitions,
     /// // 3 states and the starting state {"A"},
     /// // but no final state
-    /// let a = Automaton::from_string(
+    /// let a = Automaton::from_string::<Vec<Symbol>,Vec<Vec<Symbol>>>(
     ///     "A -> label -> B",
     ///     vec![],
     ///     Some(vec![symbol("A")])
@@ -658,7 +747,8 @@ impl Automaton<Symbol> {
     ) -> Result<Automaton<Symbol>, AutomatonError>
     where
         Q: IntoIterator<Item = Symbol>,
-        F: IntoIterator<Item = Q>,
+        F: IntoIterator,
+        F::Item: IntoIterator<Item = Symbol>,
     {
         let t = Transition::from_string(transitions)?;
 
@@ -666,6 +756,83 @@ impl Automaton<Symbol> {
             Some(q0) => Automaton::with_q0(t, f, q0),
             None => Automaton::new(t, f),
         }
+    }
+
+    /// Create a new automaton based on the grammar specified as input.
+    ///
+    /// The method works under the assumption that the only rules of the grammar are of the form
+    /// A -> a B, A -> B, A -> a, A -> ε.
+    ///
+    /// The starting state is inferred from the grammar start symbol. The transitions
+    /// towards other states are inferred from the grammar productions as follows:
+    /// - A -> a B  | {A} -> a -> {B}
+    /// - A -> B    | {A} -> ε -> {B}
+    /// - A -> a    | {A} -> a -> {◇}
+    /// - A -> ε    | {A} -> ε -> {◇}
+    ///
+    /// # Errors
+    /// Can return an [AutomatonError](enum.AutomatonError.html) if an error occurs creating
+    /// the automaton or a specific [InvalidGrammar](enum.AutomatonError.html#variant.InvalidGrammar)
+    /// error if the passed grammar is not a regular one or is not in the above descripted form.
+    ///
+    /// # Example
+    /// ```rust
+    /// use liblet::automaton::Automaton;
+    /// use liblet::grammar::grammar;
+    ///
+    /// let g = grammar("A -> B\nB -> b | ε");
+    /// let a = Automaton::from_grammar(g);
+    /// ```
+    pub fn from_grammar(g: Grammar) -> Result<Automaton<Symbol>, AutomatonError> {
+        if !Automaton::is_valid_grammar(&g) {
+            return Err(AutomatonError::InvalidGrammar);
+        }
+
+        let q0: BTreeSet<Symbol> = vec![g.s()].into_iter().collect();
+        let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
+        let t: Vec<Transition<Symbol>> = g.p().iter().try_fold(Vec::new(), |mut acc, p| {
+            let mut rhs = p.rhs().into_iter();
+            let t = match (rhs.next(), rhs.next()) {
+                (Some(s1), Some(s2)) => Ok(Transition::new(p.lhs(), s1.clone(), vec![s2.clone()])),
+                (Some(s1), None) => {
+                    if s1.is_epsilon() {
+                        f.insert(BTreeSet::new());
+                        Ok(Transition::new(p.lhs(), Symbol::epsilon(), BTreeSet::new()))
+                    } else if s1.is_terminal() {
+                        f.insert(BTreeSet::new());
+                        Ok(Transition::new(p.lhs(), s1.clone(), BTreeSet::new()))
+                    } else {
+                        Ok(Transition::new(
+                            p.lhs(),
+                            Symbol::epsilon(),
+                            vec![s1.clone()],
+                        ))
+                    }
+                }
+                (_, _) => Err(AutomatonError::InvalidGrammar),
+            };
+            t.and_then(|t| {
+                acc.push(t);
+                Ok(acc)
+            })
+        })?;
+
+        Automaton::with_q0(t, f, q0)
+    }
+
+    fn is_valid_grammar(g: &Grammar) -> bool {
+        g.p().iter().all(|p| {
+            let lhs = p.lhs();
+            let mut rhs = p.rhs().into_iter();
+
+            lhs.len() == 1
+                && (lhs.iter().all(|s| s.is_non_terminal())
+                    && match (rhs.next(), rhs.next(), rhs.next()) {
+                        (Some(s1), Some(s2), None) => s1.is_terminal() && s2.is_non_terminal(),
+                        (Some(_), None, None) => true,
+                        (_, _, _) => false,
+                    })
+        })
     }
 }
 
@@ -712,6 +879,7 @@ pub fn transitions(string: &str) -> Vec<Transition<Symbol>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::grammar::grammar;
     use crate::symbol::symbol;
     use std::convert::TryFrom;
     use std::fmt::Write;
@@ -753,7 +921,17 @@ mod tests {
 
         let result = write!(buf, "{}", t);
         assert!(result.is_ok());
-        assert_eq!(buf, "{A1,A2} --\"label\"--> {B1,B2}")
+        assert_eq!(buf, "{A1,A2}->\"label\"->{B1,B2}")
+    }
+
+    #[test]
+    fn transition_debug() {
+        let mut buf = String::new();
+        let t = Transition::new(vec!["A1", "A2"], symbol("label"), vec!["B1", "B2"]);
+
+        let result = write!(buf, "{:?}", t);
+        assert!(result.is_ok());
+        assert_eq!(buf, "{\"A1\",\"A2\"}->\"label\"->{\"B1\",\"B2\"}")
     }
 
     #[test]
@@ -1164,7 +1342,7 @@ mod tests {
         let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
         f.insert(vec![symbol("B1")].into_iter().collect());
 
-        let result = Automaton::from_string(
+        let result = Automaton::from_string::<BTreeSet<Symbol>, BTreeSet<BTreeSet<Symbol>>>(
             "
         A1 -> label1 -> B1
         A2 -> label2 -> B2
@@ -1191,7 +1369,7 @@ mod tests {
         let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
         f.insert(vec![symbol("B1")].into_iter().collect());
 
-        let result = Automaton::from_string(
+        let result = Automaton::from_string::<BTreeSet<Symbol>, BTreeSet<BTreeSet<Symbol>>>(
             "
         A1 -> label1 -> B1
         A2 -> label2 -> B2
@@ -1218,7 +1396,7 @@ mod tests {
         let mut f: BTreeSet<BTreeSet<Symbol>> = BTreeSet::new();
         f.insert(vec![symbol("B1")].into_iter().collect());
 
-        let result = Automaton::from_string(
+        let result = Automaton::from_string::<BTreeSet<Symbol>, BTreeSet<BTreeSet<Symbol>>>(
             "
         å -> label1 -> B1
         A2 -> label2 -> B2
@@ -1236,6 +1414,48 @@ mod tests {
             )),
             "Automaton creation returned error is not the one expected"
         );
+    }
+
+    #[test]
+    fn automaton_from_grammar() {
+        let g = grammar("A -> B\nB -> b | ε");
+        let a = Automaton::from_grammar(g);
+
+        println!("AUTOMATON:\n{}", a.unwrap());
+    }
+
+    #[test]
+    fn automaton_display_symbol() {
+        let mut buf = String::new();
+        let a = Automaton::from_string::<BTreeSet<Symbol>, BTreeSet<BTreeSet<Symbol>>>(
+            "A1 A2 -> label -> B1 B2",
+            BTreeSet::new(),
+            None,
+        );
+
+        let result = write!(buf, "{}", a.unwrap());
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            "n: {{A1,A2},{B1,B2}}\nt: {label}\ntransitions: {{A1,A2}->\"label\"->{B1,B2}}\nq0: {A1,A2}\nf: {}"
+        )
+    }
+
+    #[test]
+    fn automaton_debug() {
+        let mut buf = String::new();
+        let t = Transition::new(vec!["A"], symbol("label"), vec!["B"]);
+        let a = Automaton::new::<Vec<Transition<&str>>, BTreeSet<BTreeSet<&str>>>(
+            vec![t],
+            BTreeSet::new(),
+        );
+
+        let result = write!(buf, "{:?}", a.unwrap());
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            "n: {{\"A\"},{\"B\"}}\nt: {label}\ntransitions: {{\"A\"}->\"label\"->{\"B\"}}\nq0: {\"A\"}\nf: {}"
+        )
     }
 
     /// enum.AutomatonError
@@ -1270,10 +1490,26 @@ mod tests {
     }
 
     #[test]
+    fn automaton_error_display_not_regular_grammar() {
+        let mut buf = String::new();
+
+        let result = write!(buf, "{}", AutomatonError::InvalidGrammar);
+        assert!(result.is_ok());
+        assert_eq!(
+            buf,
+            format!("AutomatonError: can't create an automaton from a grammar which is not in the required form")
+        )
+    }
+
+    #[test]
     fn automaton_error_source() {
         assert!(
             AutomatonError::NoStates.source().is_none(),
-            "Automaton Error format error source should be none"
+            "Automaton Error no states source should be none"
+        );
+        assert!(
+            AutomatonError::InvalidGrammar.source().is_none(),
+            "Automaton Error not regular grammar source should be none"
         );
         assert!(
             AutomatonError::TransitionError(TransitionError::FormatError(
