@@ -1,7 +1,7 @@
 # liblet-rust
 
 [![Crates.io](https://img.shields.io/crates/v/liblet)](https://crates.io/crates/liblet)
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/kristiannotari/liblet-rust/build/v0.1.2)](https://github.com/kristiannotari/liblet-rust/actions?query=workflow%3Abuild+branch%3Av0.1.2)
+[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/kristiannotari/liblet-rust/build/v0.2.0)](https://github.com/kristiannotari/liblet-rust/actions?query=workflow%3Abuild+branch%3Av0.2.0)
 [![Codecov branch](https://img.shields.io/codecov/c/github/kristiannotari/liblet-rust/master)](https://codecov.io/gh/kristiannotari/liblet-rust/branch/master)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/kristiannotari/liblet-rust/issues)
 
@@ -18,7 +18,7 @@ This is also a learning project, used to better comprehend both the course topic
 
 [![changelog](https://img.shields.io/badge/changelog-see-lightgrey)](https://github.com/kristiannotari/liblet-rust/blob/master/CHANGELOG.md)
 
-More info available at the [docs](https://docs.rs/liblet/0.1.0).
+More info available at the [docs](https://docs.rs/liblet/0.2.0).
 
 > Following the official liblet [documentation](https://liblet.readthedocs.io).
 
@@ -27,8 +27,8 @@ More info available at the [docs](https://docs.rs/liblet/0.1.0).
 - [ ] item (not planned)
 - [x] grammar
 - [x] derivation
-- [ ] transition
-- [ ] automaton
+- [x] transition
+- [x] automaton
 - [ ] antlr support (not planned)
 - [ ] rich display (not planned yet)
 - [ ] utilities (not planned yet)

@@ -1,6 +1,10 @@
 # env specific
 .DS_Store
 
+# IDE specific
+.vscode
+.VSCodeCounter
+
 # rust specific
 /target
 Cargo.lock

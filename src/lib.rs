@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/liblet/0.1.2")]
+#![doc(html_root_url = "https://docs.rs/liblet/0.2.0")]
 
 //! Porting project for the liblet library of the Unimi course "Linguaggi e Traduttori" in Rust.
 //!
@@ -67,10 +67,14 @@
 
 mod tokenizer;
 
+pub mod automaton;
 pub mod derivation;
 pub mod grammar;
 pub mod production;
 pub mod symbol;
+
+pub use self::automaton::Automaton;
+pub use self::automaton::Transition;
 
 pub use self::derivation::Derivation;
 pub use self::derivation::DerivationError;
@@ -85,3 +89,5 @@ pub use self::production::ProductionPredicate;
 
 pub use self::symbol::Symbol;
 pub use self::symbol::SymbolError;
+
+pub use self::tokenizer::TokenizerError;
