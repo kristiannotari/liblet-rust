@@ -27,7 +27,7 @@ More info available at the [docs](https://docs.rs/liblet/0.1.0).
 - [ ] item (not planned)
 - [x] grammar
 - [x] derivation
-- [ ] transition
+- [x] transition
 - [ ] automaton
 - [ ] antlr support (not planned)
 - [ ] rich display (not planned yet)
