@@ -60,7 +60,7 @@ impl std::convert::From<SymbolError> for TransitionError {
 /// - from
 /// - to
 ///
-/// Transitions can be labeled.
+/// Transitions are labeled.
 ///
 /// States are defined as collections of [Symbol](../symbol/struct.Symbol.html)s.
 /// To define a transition between two symbols, simply use singleton collections.
@@ -366,6 +366,14 @@ where
     }
 }
 
+impl std::convert::TryFrom<&Grammar> for Automaton<Symbol> {
+    type Error = AutomatonError;
+
+    fn try_from(g: &Grammar) -> Result<Self, Self::Error> {
+        Automaton::from_grammar(g)
+    }
+}
+
 impl<T> Automaton<T>
 where
     T: Eq + Clone + Ord,
@@ -395,6 +403,7 @@ where
     /// // and final state {"1"}
     /// // and transiton "label" from {"0"} to {"1"}
     /// let a = Automaton::new(vec![t], f);
+    /// assert!(a.is_ok());
     /// ```
     ///
     /// Automaton of symbols
@@ -411,6 +420,7 @@ where
     /// // and final state {"B"}
     /// // and transiton "label" from {"A"} to {"B"}
     /// let a = Automaton::new(t, f);
+    /// assert!(a.is_ok());
     /// ```
     pub fn new<I, F>(transitions: I, f: F) -> Result<Automaton<T>, AutomatonError>
     where
@@ -456,6 +466,7 @@ where
     /// // and final state {"1"}
     /// // and transiton "label" from {"0"} to {"1"}
     /// let a = Automaton::with_q0(vec![t], f, q0);
+    /// assert!(a.is_ok());
     /// ```
     ///
     /// Automaton of symbols
@@ -473,6 +484,7 @@ where
     /// // and final state {"B"}
     /// // and transiton "label" from {"A"} to {"B"}
     /// let a = Automaton::with_q0(t, f, q0);
+    /// assert!(a.is_ok());
     /// ```
     pub fn with_q0<I, Q, F>(transitions: I, f: F, q0: Q) -> Result<Automaton<T>, AutomatonError>
     where
@@ -812,9 +824,9 @@ impl Automaton<Symbol> {
     /// use liblet::grammar::grammar;
     ///
     /// let g = grammar("A -> B\nB -> b | ε");
-    /// let a = Automaton::from_grammar(g);
+    /// let a = Automaton::from_grammar(&g);
     /// ```
-    pub fn from_grammar(g: Grammar) -> Result<Automaton<Symbol>, AutomatonError> {
+    pub fn from_grammar(g: &Grammar) -> Result<Automaton<Symbol>, AutomatonError> {
         if !Automaton::is_valid_grammar(&g) {
             return Err(AutomatonError::InvalidGrammar);
         }
@@ -905,6 +917,76 @@ pub fn transition(string: &str) -> Transition<Symbol> {
 /// ```
 pub fn transitions(string: &str) -> Vec<Transition<Symbol>> {
     Transition::from_string(string).unwrap()
+}
+
+/// Convenience method for creating a an automaton.
+///
+/// It returns the automaton directly, as opposed to the `Result` returned from
+/// the automaton [new](struct.Automaton.html#method.new) method.
+///
+/// # Panics
+/// Panics if trying to construct the automaton returns an error as specified in the
+/// automaton [new](struct.Automaton.html#method.new) method.
+///
+/// # Examples
+/// ```rust
+/// use liblet::automaton::{automaton,Transition};
+/// use liblet::symbol::symbol;
+/// use std::collections::BTreeSet;
+///
+/// let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
+/// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+/// f.insert(vec!["1"].into_iter().collect());
+///
+/// // automaton with starting state {"0"}
+/// // and final state {"1"}
+/// // and transiton "label" from {"0"} to {"1"}
+/// let a = automaton(vec![t], f);
+/// ```
+pub fn automaton<T, I, F>(transitions: I, f: F) -> Automaton<T>
+where
+    T: Eq + Clone + Ord,
+    I: IntoIterator<Item = Transition<T>>,
+    F: IntoIterator,
+    F::Item: IntoIterator<Item = T>,
+{
+    Automaton::new(transitions, f).unwrap()
+}
+
+/// Convenience method for creating a an automaton with a specified q0 state.
+///
+/// It returns the automaton directly, as opposed to the `Result` returned from
+/// the automaton [with_q0](struct.Automaton.html#method.with_q0) method.
+///
+/// # Panics
+/// Panics if trying to construct the automaton returns an error as specified in the
+/// automaton [with_q0](struct.Automaton.html#method.with_q0) method.
+///
+/// # Examples
+/// ```rust
+/// use liblet::automaton::{automaton_with_q0,Transition};
+/// use liblet::symbol::symbol;
+/// use std::collections::BTreeSet;
+///
+/// let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
+/// let q0: BTreeSet<&str> = vec!["0"].into_iter().collect();
+/// let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+/// f.insert(vec!["1"].into_iter().collect());
+///
+/// // automaton with starting state {"0"}
+/// // and final state {"1"}
+/// // and transiton "label" from {"0"} to {"1"}
+/// let a = automaton_with_q0(vec![t], f, q0);
+/// ```
+pub fn automaton_with_q0<T, Q, I, F>(transitions: I, f: F, q0: Q) -> Automaton<T>
+where
+    T: Eq + Clone + Ord,
+    I: IntoIterator<Item = Transition<T>>,
+    Q: IntoIterator<Item = T>,
+    F: IntoIterator,
+    F::Item: IntoIterator<Item = T>,
+{
+    Automaton::with_q0(transitions, f, q0).unwrap()
 }
 
 #[cfg(test)]
@@ -1475,7 +1557,7 @@ mod tests {
     #[test]
     fn automaton_from_grammar() {
         let g = grammar("A -> B\nB -> b | ε");
-        let result = Automaton::from_grammar(g);
+        let result = Automaton::from_grammar(&g);
 
         assert!(
             result.is_ok(),
@@ -1486,7 +1568,7 @@ mod tests {
     #[test]
     fn automaton_from_grammar_error() {
         let g = grammar("A -> B C D\nB -> b | ε");
-        let result = Automaton::from_grammar(g);
+        let result = Automaton::from_grammar(&g);
 
         assert!(
             result.is_err(),
@@ -1497,6 +1579,17 @@ mod tests {
             AutomatonError::InvalidGrammar,
             "Automaton creation returned error is not the one expected"
         )
+    }
+
+    #[test]
+    fn automaton_try_from_grammar() {
+        let g = grammar("A -> B\nB -> b | ε");
+        let result = Automaton::try_from(&g);
+
+        assert!(
+            result.is_ok(),
+            "Automaton creation try_from grammar should not return an error"
+        );
     }
 
     #[test]
@@ -1619,5 +1712,24 @@ mod tests {
     #[should_panic]
     fn transitions_error() {
         super::transitions("A -> label");
+    }
+
+    #[test]
+    fn automaton() {
+        let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
+        let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+        f.insert(vec!["1"].into_iter().collect());
+
+        super::automaton(vec![t], f);
+    }
+
+    #[test]
+    fn mod_automaton_with_q0() {
+        let t = Transition::new(vec!["0"], symbol("label"), vec!["1"]);
+        let mut f: BTreeSet<BTreeSet<&str>> = BTreeSet::new();
+        f.insert(vec!["1"].into_iter().collect());
+        let q0: BTreeSet<&str> = vec!["0"].into_iter().collect();
+
+        super::automaton_with_q0(vec![t], f, q0);
     }
 }

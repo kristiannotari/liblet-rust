@@ -3,6 +3,7 @@
 
 # IDE specific
 .vscode
+.VSCodeCounter
 
 # rust specific
 /target
